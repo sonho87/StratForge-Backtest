@@ -703,7 +703,25 @@ class Component extends DCLogic {
   setMarket(mk){ this.setState(s=>{ let syms=s.config.symbols.filter(sy=> mk==='both'||(this.SYMBOLS[sy]&&this.SYMBOLS[sy].m.toLowerCase()===mk)); if(!syms.length){ syms=Object.keys(this.SYMBOLS).filter(sy=>mk==='both'||this.SYMBOLS[sy].m.toLowerCase()===mk).slice(0,4);} return {config:{...s.config,market:mk,symbols:syms}}; },()=>this.markDirty()); }
   toggleSym(sym){ this.setState(s=>{ const has=s.config.symbols.includes(sym); let syms=has?s.config.symbols.filter(x=>x!==sym):[...s.config.symbols,sym]; if(!syms.length)syms=[sym]; return {config:{...s.config,symbols:syms}}; },()=>this.markDirty()); }
   setPeriod(yrs){ this.setCfg({startYear:2025-yrs+1,endYear:2025}); }
-  run(){ this.setState(s=>({ranConfig:this.clone(s.config),results:this.runBacktest(s.config),dirty:false,tab:s.tab==='lab'?'performance':s.tab})); }
+  run(){
+    const cfg = this.state.config;
+    if(cfg.dataSource === 'sample'){
+      this.setState(s=>({ranConfig:this.clone(s.config),results:this.runBacktest(s.config),dirty:false,tab:s.tab==='lab'?'performance':s.tab}));
+      return;
+    }
+    const url = (window.STRATFORGE_API || 'http://localhost:8765') + '/api/backtest';
+    const body = {...cfg, uploadId: cfg.uploadId || ''};
+    fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+      .then(r=>r.ok?r.json():r.text().then(t=>Promise.reject(new Error(t))))
+      .then(res=>{
+        res.days = res.days.map(d=>new Date(d));
+        this.setState(s=>({ranConfig:this.clone(s.config),results:res,dirty:false,tab:s.tab==='lab'?'performance':s.tab}));
+      })
+      .catch(err=>{
+        console.error('[backtest]', err);
+        alert('Backtest failed:\n'+err.message+'\n\nIs the backend running on '+url+'?');
+      });
+  }
   reset(){ const cfg=this.defaultConfig(); this.setState({config:cfg,ranConfig:this.clone(cfg),results:this.runBacktest(cfg),dirty:false}); }
 
   // ---------- code generation ----------
@@ -818,7 +836,16 @@ class Component extends DCLogic {
       apiProvider:cfg.apiProvider, apiKey:cfg.apiKey,
       onProvider:(e)=>this.setCfg({apiProvider:e.target.value}), onApiKey:(e)=>this.setCfg({apiKey:e.target.value}),
       providerOptions:Object.keys(PROV).map(k=>({key:k,label:PROV[k]})),
-      onCsv:(e)=>{ const f=e.target.files&&e.target.files[0]; if(f)this.setCfg({csvName:f.name}); },
+      onCsv:(e)=>{
+        const f=e.target.files&&e.target.files[0]; if(!f) return;
+        this.setCfg({csvName:f.name+' · uploading…'});
+        const fd=new FormData(); fd.append('file',f);
+        const url=(window.STRATFORGE_API||'http://localhost:8765')+'/api/upload';
+        fetch(url,{method:'POST',body:fd})
+          .then(r=>r.ok?r.json():r.text().then(t=>Promise.reject(new Error(t))))
+          .then(res=>this.setCfg({csvName:f.name+' · '+res.rows.toLocaleString('en-US')+' rows · '+res.symbols.length+' symbols',uploadId:res.upload_id}))
+          .catch(err=>{ console.error('[upload]',err); this.setCfg({csvName:f.name+' · upload failed'}); alert('CSV upload failed:\n'+err.message); });
+      },
       csvName:cfg.csvName, csvStatus: cfg.csvName? ('Loaded '+cfg.csvName+' · '+R.eq.length.toLocaleString('en-US')+' rows') : 'No file selected',
       apiStatus: cfg.apiKey? ('Connected to '+PROV[cfg.apiProvider]+' · key •••'+cfg.apiKey.slice(-4)) : ('Enter '+PROV[cfg.apiProvider]+' API key'),
       dsFooter: cfg.dataSource==='sample'?'Data source: built-in synthetic OHLCV (offline)':cfg.dataSource==='api'?('Data source: '+PROV[cfg.apiProvider]+' API'):('Data source: uploaded CSV'+(cfg.csvName?(' — '+cfg.csvName):'')),
