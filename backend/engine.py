@@ -45,8 +45,42 @@ def crossunder(a: pd.Series, b: pd.Series | float) -> pd.Series:
 
 # ---------- signal generation ----------
 
-def signals(df: pd.DataFrame, strategy: str, params: dict) -> tuple[pd.Series, pd.Series]:
+def run_custom_python(code: str, df: pd.DataFrame, params: dict) -> tuple[pd.Series, pd.Series]:
+    """Execute user-pasted Python. The pasted code must define `signals(df, params)`
+    returning `(enter_long, exit_long)` boolean Series aligned to df.index.
+
+    Sandbox: no builtins beyond a safe whitelist; no imports needed (pd/np/ta exposed).
+    Runs in-process — fine for local single-user use; wrap in a subprocess for prod.
+    """
+    safe_builtins = {
+        "abs": abs, "min": min, "max": max, "sum": sum, "len": len,
+        "range": range, "round": round, "int": int, "float": float, "bool": bool,
+        "list": list, "dict": dict, "tuple": tuple, "set": set, "str": str,
+        "enumerate": enumerate, "zip": zip, "any": any, "all": all,
+        "True": True, "False": False, "None": None,
+    }
+    env = {
+        "__builtins__": safe_builtins,
+        "pd": pd, "np": np,
+        "rsi": rsi, "sma": sma, "ema": ema,
+        "crossover": crossover, "crossunder": crossunder,
+    }
+    exec(compile(code, "<custom_strategy>", "exec"), env, env)
+    fn = env.get("signals")
+    if not callable(fn):
+        raise ValueError("Custom Python must define a function: signals(df, params) -> (enter, exit)")
+    out = fn(df, params)
+    if not (isinstance(out, tuple) and len(out) == 2):
+        raise ValueError("signals(df, params) must return a tuple (enter_long, exit_long)")
+    enter, exit_ = out
+    return pd.Series(enter, index=df.index).fillna(False), pd.Series(exit_, index=df.index).fillna(False)
+
+
+def signals(df: pd.DataFrame, strategy: str, params: dict,
+            custom_code: str = "", custom_lang: str = "") -> tuple[pd.Series, pd.Series]:
     """Return (enter_long, exit_long) boolean series aligned to df.index."""
+    if strategy == "custom" and custom_code.strip() and custom_lang == "python":
+        return run_custom_python(custom_code, df, params)
     c = df["close"]
     if strategy == "rsiMeanRev":
         r = rsi(c, int(params.get("rsiLen", 14)))
@@ -78,7 +112,9 @@ def signals(df: pd.DataFrame, strategy: str, params: dict) -> tuple[pd.Series, p
 
 def simulate_symbol(df: pd.DataFrame, cfg: dict) -> dict:
     """Walk bars; enter on signal, exit on opposite signal / SL / TP. Returns trades + per-bar equity."""
-    enter, exit_ = signals(df, cfg["strategy"], cfg["params"])
+    enter, exit_ = signals(df, cfg["strategy"], cfg["params"],
+                            custom_code=cfg.get("customCode", ""),
+                            custom_lang=cfg.get("customLang", ""))
     closes = df["close"].values
     dates = df.index.to_pydatetime()
     n = len(closes)

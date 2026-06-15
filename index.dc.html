@@ -710,7 +710,7 @@ class Component extends DCLogic {
       return;
     }
     const url = (window.STRATFORGE_API || 'http://localhost:8765') + '/api/backtest';
-    const body = {...cfg, uploadId: cfg.uploadId || ''};
+    const body = {...cfg, uploadId: cfg.uploadId || '', customLang: this.state.lang};
     fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
       .then(r=>r.ok?r.json():r.text().then(t=>Promise.reject(new Error(t))))
       .then(res=>{
