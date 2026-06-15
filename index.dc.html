@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:#100f0c;font-family:'Space Grotesk',system-ui,sans-serif;color:#f2ede1;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#332f27;border-radius:6px;border:2px solid #100f0c}
+  ::-webkit-scrollbar-thumb:hover{background:#46412f}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:#33302a;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#ff8a3d;cursor:pointer;border:2px solid #1c1a15;box-shadow:0 0 0 1px #ff8a3d}
+  input[type=number],input[type=text]{font-family:'JetBrains Mono',monospace}
+  @keyframes fpop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="height:100vh;display:flex;flex-direction:column;background:#100f0c;overflow:hidden">
+
+  <!-- ============ HEADER ============ -->
+  <header style="display:flex;align-items:center;gap:18px;padding:0 20px;height:60px;background:#161410;border-bottom:1px solid #2a271f;flex:0 0 auto;z-index:5">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:26px;height:26px;background:linear-gradient(135deg,#ff8a3d,#f5c542);transform:rotate(45deg);border-radius:6px"></div>
+      <div style="font:700 17px/1 'Space Grotesk';letter-spacing:0.02em">STRAT<span style="color:#ff8a3d">FORGE</span></div>
+    </div>
+    <div style="width:1px;height:26px;background:#2a271f"></div>
+    <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+      <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.09em;color:#7c7565">STRATEGY</div>
+      <div style="font:600 14px/1 'Space Grotesk';color:#f2ede1;white-space:nowrap">{{ stratLabel }}</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-left:6px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px;background:#1f1c15;border:1px solid #2a271f;border-radius:8px;padding:6px 10px;font:500 12px/1 'JetBrains Mono';color:#b8b0a0">{{ marketLabel }}</div>
+      <div style="display:flex;align-items:center;gap:6px;background:#1f1c15;border:1px solid #2a271f;border-radius:8px;padding:6px 10px;font:500 12px/1 'JetBrains Mono';color:#b8b0a0">{{ periodLabel }}</div>
+      <div style="display:flex;align-items:center;gap:6px;background:#1f1c15;border:1px solid #2a271f;border-radius:8px;padding:6px 10px;font:500 12px/1 'JetBrains Mono';color:#b8b0a0">{{ symbolsLabel }}</div>
+      <div style="display:flex;align-items:center;gap:6px;background:#1f1c15;border:1px solid #2a271f;border-radius:8px;padding:6px 10px;font:500 12px/1 'JetBrains Mono';color:#b8b0a0">{{ barsLabel }}</div>
+    </div>
+    <div style="flex:1"></div>
+    <sc-if value="{{ dirty }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:7px;color:#f5c542;font:500 12px/1 'Space Grotesk';animation:fpop .2s ease">
+        <span style="width:7px;height:7px;border-radius:50%;background:#f5c542;box-shadow:0 0 8px #f5c542"></span>Settings changed — re-run
+      </div>
+    </sc-if>
+    <button onClick="{{ reset }}" style="background:transparent;border:1px solid #33302a;color:#b8b0a0;font:600 13px 'Space Grotesk';padding:9px 14px;border-radius:9px;cursor:pointer" style-hover="border-color:#46412f;color:#f2ede1">Reset</button>
+    <button onClick="{{ run }}" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#ff8a3d,#f4720f);border:none;color:#1a1206;font:700 13px 'Space Grotesk';padding:10px 18px;border-radius:9px;cursor:pointer;box-shadow:0 4px 14px rgba(255,138,61,.28)" style-hover="filter:brightness(1.06)">
+      <span style="font-size:11px">▶</span> Run Backtest
+    </button>
+  </header>
+
+  <div style="display:flex;flex:1;min-height:0">
+    <!-- ============ SIDEBAR ============ -->
+    <nav style="width:188px;flex:0 0 auto;background:#161410;border-right:1px solid #2a271f;display:flex;flex-direction:column;padding:14px 12px;gap:4px">
+      <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.11em;color:#5e574a;padding:6px 10px 8px">WORKSPACE</div>
+      <button onClick="{{ tLab }}" style="{{ navLab }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 8 5 12 9 16"/><polyline points="15 8 19 12 15 16"/></svg>
+        Strategy Lab
+      </button>
+      <button onClick="{{ tPerf }}" style="{{ navPerf }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 16 9 10 13 14 21 5"/></svg>
+        Performance
+      </button>
+      <button onClick="{{ tTrades }}" style="{{ navTrades }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        Trade Log
+      </button>
+      <button onClick="{{ tMarkets }}" style="{{ navMarkets }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="4" height="9"/><rect x="10" y="6" width="4" height="14"/><rect x="16" y="9" width="4" height="11"/></svg>
+        Markets
+      </button>
+      <div style="flex:1"></div>
+      <div style="background:#1c1a15;border:1px solid #2a271f;border-radius:12px;padding:13px">
+        <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.09em;color:#7c7565;margin-bottom:9px">GO-LIVE READINESS</div>
+        <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:8px">
+          <div style="font:700 26px/0.8 'JetBrains Mono';color:{{ readyColor }}">{{ readyScore }}</div>
+          <div style="font:600 13px/1.5 'Space Grotesk';color:#7c7565">/100</div>
+        </div>
+        <div style="height:5px;background:#33302a;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:{{ readyPct }};background:{{ readyColor }};border-radius:4px"></div>
+        </div>
+        <div style="margin-top:9px;font:600 11px/1.3 'Space Grotesk';color:{{ readyColor }}">{{ readyVerdict }}</div>
+      </div>
+    </nav>
+
+    <!-- ============ MAIN ============ -->
+    <main style="flex:1;min-width:0;overflow-y:auto;background:#100f0c">
+
+      <!-- ===== LAB ===== -->
+      <sc-if value="{{ isLab }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:22px;display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start;min-height:100%">
+        <!-- code editor -->
+        <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;overflow:hidden;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:4px;padding:10px 14px;border-bottom:1px solid #2a271f;background:#161410">
+            <button onClick="{{ pine }}" style="{{ langPine }}">Pine Script v5</button>
+            <button onClick="{{ python }}" style="{{ langPy }}">Python</button>
+            <button onClick="{{ toggleEdit }}" style="{{ editStyle }}">{{ editLabel }}</button>
+            <div style="flex:1"></div>
+            <div style="font:500 10px/1 'JetBrains Mono';color:#7c7565">{{ codeBadge }}</div>
+            <div style="display:flex;align-items:center;gap:6px;font:500 11px/1 'JetBrains Mono';color:#37d27e"><span style="width:7px;height:7px;border-radius:50%;background:#37d27e;box-shadow:0 0 7px #37d27e"></span>compiled · 0 errors</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #2a271f">
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565">TEMPLATE</div>
+            <select onChange="{{ onStrategy }}" value="{{ strategyKey }}" style="flex:1;background:#100f0c;border:1px solid #33302a;color:#f2ede1;font:500 13px 'Space Grotesk';padding:8px 10px;border-radius:8px;cursor:pointer">
+              <sc-for list="{{ strategyOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.label }}</option></sc-for>
+            </select>
+            <button onClick="{{ run }}" style="background:#23201a;border:1px solid #46412f;color:#ff8a3d;font:600 12px 'Space Grotesk';padding:8px 13px;border-radius:8px;cursor:pointer" style-hover="background:#2a261d">⟳ Compile & Run</button>
+          </div>
+          <sc-if value="{{ notEditing }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1;overflow:auto;background:#141210;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.65;max-height:560px">
+            <sc-for list="{{ codeLines }}" as="ln" hint-placeholder-count="22">
+              <div style="display:flex">
+                <span style="flex:0 0 44px;text-align:right;padding-right:14px;color:#4a443a;user-select:none">{{ ln.num }}</span>
+                <span style="white-space:pre;color:{{ ln.color }};padding-right:18px">{{ ln.text }}</span>
+              </div>
+            </sc-for>
+          </div>
+          </sc-if>
+          <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
+          <textarea onInput="{{ onCodeInput }}" value="{{ codeText }}" spellcheck="false" placeholder="// Paste your own Pine Script v5 or Python strategy here…" style="flex:1;min-height:420px;max-height:560px;width:100%;background:#141210;border:none;color:#d8d1c2;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.65;padding:12px 16px;outline:none;resize:vertical"></textarea>
+          </sc-if>
+          <div style="padding:11px 14px;border-top:1px solid #2a271f;background:#161410;display:flex;align-items:center;gap:10px">
+            <div style="font:500 11px/1.4 'JetBrains Mono';color:#7c7565">Hit <span style="color:#ff8a3d">Edit code</span> to paste your own Pine Script / Python, then <span style="color:#ff8a3d">Compile &amp; Run</span>. Templates auto-generate when not editing.</div>
+          </div>
+        </div>
+
+        <!-- settings -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- universe -->
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 18px">
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565;margin-bottom:13px">UNIVERSE &amp; MARKET</div>
+            <div style="display:flex;gap:6px;margin-bottom:14px">
+              <button onClick="{{ mBoth }}" style="{{ mBothStyle }}">Both</button>
+              <button onClick="{{ mUS }}" style="{{ mUSStyle }}">US</button>
+              <button onClick="{{ mNSE }}" style="{{ mNSEStyle }}">NSE 🇮🇳</button>
+            </div>
+            <sc-if value="{{ showUS }}" hint-placeholder-val="{{ true }}">
+              <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.07em;color:#5e574a;margin-bottom:8px">US EQUITIES</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+                <sc-for list="{{ usSymbols }}" as="s" hint-placeholder-count="8"><button onClick="{{ s.toggle }}" style="{{ s.style }}">{{ s.sym }}</button></sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ showNSE }}" hint-placeholder-val="{{ true }}">
+              <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.07em;color:#5e574a;margin-bottom:8px">NSE — INDIA</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <sc-for list="{{ nseSymbols }}" as="s" hint-placeholder-count="8"><button onClick="{{ s.toggle }}" style="{{ s.style }}">{{ s.sym }}</button></sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- timeframe -->
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 18px">
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565;margin-bottom:12px">TIMEFRAME / RESOLUTION</div>
+            <div style="display:flex;gap:6px;margin-bottom:11px">
+              <sc-for list="{{ tfButtons }}" as="b" hint-placeholder-count="5"><button onClick="{{ b.onClick }}" style="{{ b.style }}">{{ b.label }}</button></sc-for>
+            </div>
+            <div style="font:500 11px/1.45 'Space Grotesk';color:#9b9384">{{ tfNote }}</div>
+          </div>
+
+          <!-- data source -->
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 18px">
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565;margin-bottom:12px">DATA SOURCE</div>
+            <div style="display:flex;gap:6px;margin-bottom:14px">
+              <button onClick="{{ dsSample }}" style="{{ dsSampleStyle }}">Sample</button>
+              <button onClick="{{ dsApi }}" style="{{ dsApiStyle }}">API key</button>
+              <button onClick="{{ dsCsv }}" style="{{ dsCsvStyle }}">Upload CSV</button>
+            </div>
+            <sc-if value="{{ showSample }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:flex-start;gap:9px;background:#100f0c;border:1px solid #2a271f;border-radius:9px;padding:11px 12px">
+                <span style="color:#f5c542;font-size:13px;line-height:1.3">◆</span>
+                <div style="font:500 11px/1.5 'Space Grotesk';color:#9b9384">Built-in synthetic OHLCV — deterministic from your settings, fully offline. No key needed. Swap to a live source for real fills.</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ showApi }}" hint-placeholder-val="{{ false }}">
+              <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565;margin-bottom:6px">PROVIDER</div>
+              <select onChange="{{ onProvider }}" value="{{ apiProvider }}" style="width:100%;background:#100f0c;border:1px solid #33302a;color:#f2ede1;font:500 13px 'Space Grotesk';padding:9px 10px;border-radius:8px;cursor:pointer;margin-bottom:11px">
+                <sc-for list="{{ providerOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
+              </select>
+              <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565;margin-bottom:6px">API KEY</div>
+              <input type="text" value="{{ apiKey }}" onChange="{{ onApiKey }}" placeholder="paste secret key" style="width:100%;background:#100f0c;border:1px solid #33302a;color:#f2ede1;font:500 12px 'JetBrains Mono';padding:9px 11px;border-radius:8px;outline:none;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:7px;font:500 11px/1.4 'JetBrains Mono';color:#f5c542"><span style="width:6px;height:6px;border-radius:50%;background:#f5c542"></span>{{ apiStatus }}</div>
+            </sc-if>
+            <sc-if value="{{ showCsv }}" hint-placeholder-val="{{ false }}">
+              <label style="display:flex;flex-direction:column;align-items:center;gap:8px;background:#100f0c;border:1.5px dashed #46412f;border-radius:10px;padding:20px 14px;cursor:pointer" style-hover="border-color:#ff8a3d">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff8a3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div style="font:600 12px 'Space Grotesk';color:#f2ede1">Drop NSE / US OHLCV CSV</div>
+                <div style="font:500 10px 'JetBrains Mono';color:#7c7565">date,open,high,low,close,volume</div>
+                <input type="file" accept=".csv" onChange="{{ onCsv }}" style="display:none">
+              </label>
+              <div style="display:flex;align-items:center;gap:7px;font:500 11px/1.4 'JetBrains Mono';color:#37d27e;margin-top:10px"><span style="width:6px;height:6px;border-radius:50%;background:#37d27e"></span>{{ csvStatus }}</div>
+            </sc-if>
+            <div style="font:500 10px/1.4 'JetBrains Mono';color:#5e574a;margin-top:11px;padding-top:10px;border-top:1px solid #2a271f">{{ dsFooter }}</div>
+          </div>
+
+          <!-- period + capital -->
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px">
+              <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565">BACKTEST PERIOD</div>
+              <div style="display:flex;gap:6px">
+                <button onClick="{{ p10 }}" style="{{ p10Style }}">10Y</button>
+                <button onClick="{{ p15 }}" style="{{ p15Style }}">15Y</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+              <span style="font:500 12px 'JetBrains Mono';color:#b8b0a0;flex:0 0 38px">{{ startYear }}</span>
+              <input type="range" min="2009" max="2024" step="1" value="{{ startYear }}" onInput="{{ onStart }}" style="flex:1">
+              <span style="font:500 11px 'Space Grotesk';color:#5e574a">start</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font:500 12px 'JetBrains Mono';color:#b8b0a0;flex:0 0 38px">{{ endYear }}</span>
+              <input type="range" min="2010" max="2025" step="1" value="{{ endYear }}" onInput="{{ onEnd }}" style="flex:1">
+              <span style="font:500 11px 'Space Grotesk';color:#5e574a">end</span>
+            </div>
+            <div style="height:1px;background:#2a271f;margin:15px 0"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <label style="display:block"><span style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565">INITIAL CAPITAL</span><div style="display:flex;align-items:center;background:#100f0c;border:1px solid #33302a;border-radius:8px;margin-top:6px;padding:0 10px"><span style="color:#5e574a;font:500 13px 'JetBrains Mono'">$</span><input type="number" value="{{ capital }}" onChange="{{ onCapital }}" style="width:100%;background:transparent;border:none;color:#f2ede1;font:500 13px 'JetBrains Mono';padding:9px 4px;outline:none"></div></label>
+              <label style="display:block"><span style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565">POSITION SIZE</span><div style="display:flex;align-items:center;background:#100f0c;border:1px solid #33302a;border-radius:8px;margin-top:6px;padding:0 10px"><input type="number" value="{{ posSize }}" onChange="{{ onPos }}" style="width:100%;background:transparent;border:none;color:#f2ede1;font:500 13px 'JetBrains Mono';padding:9px 4px;outline:none"><span style="color:#5e574a;font:500 13px 'JetBrains Mono'">%</span></div></label>
+              <label style="display:block"><span style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565">COMMISSION</span><div style="display:flex;align-items:center;background:#100f0c;border:1px solid #33302a;border-radius:8px;margin-top:6px;padding:0 10px"><input type="number" step="0.01" value="{{ commission }}" onChange="{{ onComm }}" style="width:100%;background:transparent;border:none;color:#f2ede1;font:500 13px 'JetBrains Mono';padding:9px 4px;outline:none"><span style="color:#5e574a;font:500 13px 'JetBrains Mono'">%</span></div></label>
+              <label style="display:block"><span style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565">SLIPPAGE</span><div style="display:flex;align-items:center;background:#100f0c;border:1px solid #33302a;border-radius:8px;margin-top:6px;padding:0 10px"><input type="number" step="0.01" value="{{ slippage }}" onChange="{{ onSlip }}" style="width:100%;background:transparent;border:none;color:#f2ede1;font:500 13px 'JetBrains Mono';padding:9px 4px;outline:none"><span style="color:#5e574a;font:500 13px 'JetBrains Mono'">%</span></div></label>
+            </div>
+          </div>
+
+          <!-- strategy params + risk -->
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 18px">
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565;margin-bottom:6px">STRATEGY PARAMETERS</div>
+            <sc-for list="{{ params }}" as="p" hint-placeholder-count="3">
+              <div style="margin-top:14px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font:500 12px 'Space Grotesk';color:#cdc6b8">{{ p.label }}</span><span style="font:600 12px 'JetBrains Mono';color:#ff8a3d">{{ p.display }}</span></div>
+                <input type="range" min="{{ p.min }}" max="{{ p.max }}" step="{{ p.step }}" value="{{ p.value }}" onInput="{{ p.onInput }}" style="width:100%">
+              </div>
+            </sc-for>
+            <div style="height:1px;background:#2a271f;margin:16px 0"></div>
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565;margin-bottom:6px">RISK MANAGEMENT</div>
+            <div style="margin-top:13px"><div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font:500 12px 'Space Grotesk';color:#cdc6b8">Stop loss</span><span style="font:600 12px 'JetBrains Mono';color:#f0556a">{{ stopLoss }}%</span></div><input type="range" min="1" max="20" step="0.5" value="{{ stopLoss }}" onInput="{{ onStop }}" style="width:100%"></div>
+            <div style="margin-top:13px"><div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font:500 12px 'Space Grotesk';color:#cdc6b8">Take profit</span><span style="font:600 12px 'JetBrains Mono';color:#37d27e">{{ takeProfit }}%</span></div><input type="range" min="2" max="40" step="0.5" value="{{ takeProfit }}" onInput="{{ onTarget }}" style="width:100%"></div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ===== PERFORMANCE ===== -->
+      <sc-if value="{{ isPerf }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Performance" style="padding:22px;display:flex;flex-direction:column;gap:16px">
+        <!-- hero cards -->
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
+          <sc-for list="{{ heroCards }}" as="c" hint-placeholder-count="6">
+            <div style="background:#1a1813;border:1px solid #2a271f;border-radius:13px;padding:15px 16px;position:relative;overflow:hidden">
+              <div style="position:absolute;top:0;left:0;right:0;height:3px;background:{{ c.tone }}"></div>
+              <div style="font:600 10px/1.2 'Space Grotesk';letter-spacing:0.07em;color:#7c7565;margin-bottom:11px">{{ c.label }}</div>
+              <div style="font:700 24px/1 'JetBrains Mono';color:{{ c.valColor }};margin-bottom:6px">{{ c.value }}</div>
+              <div style="font:500 11px/1.2 'Space Grotesk';color:{{ c.subColor }}">{{ c.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- equity curve -->
+        <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:18px 20px 14px">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+            <div style="font:600 14px/1 'Space Grotesk'">Equity Curve <span style="color:#5e574a;font-weight:500">vs Buy &amp; Hold</span></div>
+            <div style="display:flex;align-items:center;gap:7px;font:500 12px 'Space Grotesk';color:#b8b0a0"><span style="width:14px;height:3px;background:#37d27e;border-radius:2px"></span>Strategy <span style="font-family:'JetBrains Mono';color:#37d27e">{{ finalEqLabel }}</span></div>
+            <div style="display:flex;align-items:center;gap:7px;font:500 12px 'Space Grotesk';color:#b8b0a0"><span style="width:14px;height:3px;background:#7e8aa0;border-radius:2px"></span>Benchmark <span style="font-family:'JetBrains Mono';color:#b8b0a0">{{ finalBenchLabel }}</span></div>
+            <div style="flex:1"></div>
+            <button onClick="{{ toggleLog }}" style="{{ logStyle }}">{{ logLabel }}</button>
+          </div>
+          <div style="position:relative;height:300px">
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none">
+              <sc-for list="{{ eqYTicks }}" as="t" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:8px"><span style="font:500 10px 'JetBrains Mono';color:#5e574a;width:50px;text-align:right">{{ t.label }}</span><div style="flex:1;height:1px;background:#221f19"></div></div></sc-for>
+            </div>
+            <svg viewBox="0 0 1000 300" preserveAspectRatio="none" style="position:absolute;left:58px;right:0;top:0;width:calc(100% - 58px);height:300px">
+              <defs><linearGradient id="eqg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#37d27e" stop-opacity="0.26"/><stop offset="1" stop-color="#37d27e" stop-opacity="0"/></linearGradient></defs>
+              <path d="{{ eqAreaPath }}" fill="url(#eqg)"/>
+              <path d="{{ benchLinePath }}" fill="none" stroke="#7e8aa0" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+              <path d="{{ eqLinePath }}" fill="none" stroke="#37d27e" stroke-width="2.1" vector-effect="non-scaling-stroke"/>
+            </svg>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin:8px 0 0 58px"><sc-for list="{{ eqXTicks }}" as="x" hint-placeholder-count="6"><span style="font:500 10px 'JetBrains Mono';color:#5e574a">{{ x.label }}</span></sc-for></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start">
+          <!-- drawdown + rolling sharpe -->
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px 12px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px"><div style="font:600 14px/1 'Space Grotesk'">Drawdown <span style="color:#5e574a;font-weight:500">underwater</span></div><div style="font:600 13px 'JetBrains Mono';color:#f0556a">max {{ maxDDLabel }}</div></div>
+              <div style="position:relative;height:130px">
+                <svg viewBox="0 0 1000 130" preserveAspectRatio="none" style="width:100%;height:130px">
+                  <defs><linearGradient id="ddg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0556a" stop-opacity="0.05"/><stop offset="1" stop-color="#f0556a" stop-opacity="0.32"/></linearGradient></defs>
+                  <path d="{{ ddAreaPath }}" fill="url(#ddg)"/>
+                  <path d="{{ ddLinePath }}" fill="none" stroke="#f0556a" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </div>
+            </div>
+            <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px 12px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px"><div style="font:600 14px/1 'Space Grotesk'">Rolling Sharpe <span style="color:#5e574a;font-weight:500">126d</span></div><div style="font:600 13px 'JetBrains Mono';color:{{ avgRSColor }}">avg {{ avgRSLabel }}</div></div>
+              <div style="position:relative;height:130px">
+                <svg viewBox="0 0 1000 130" preserveAspectRatio="none" style="width:100%;height:130px">
+                  <line x1="0" y1="{{ rsZeroY }}" x2="1000" y2="{{ rsZeroY }}" stroke="#33302a" stroke-width="1" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>
+                  <line x1="0" y1="{{ rsOneY }}" x2="1000" y2="{{ rsOneY }}" stroke="#2a3a2a" stroke-width="1" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>
+                  <path d="{{ rsLinePath }}" fill="none" stroke="{{ avgRSColor }}" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- readiness gate -->
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:18px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div style="font:600 14px/1 'Space Grotesk'">Go-Live Readiness</div></div>
+            <div style="font:500 12px/1.4 'Space Grotesk';color:#7c7565;margin-bottom:16px">Deploy only when the strategy clears the gate.</div>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+              <div style="position:relative;width:84px;height:84px;flex:0 0 auto">
+                <svg viewBox="0 0 100 100" style="width:84px;height:84px;transform:rotate(-90deg)"><circle cx="50" cy="50" r="42" fill="none" stroke="#2a271f" stroke-width="9"/><circle cx="50" cy="50" r="42" fill="none" stroke="{{ readyColor }}" stroke-width="9" stroke-linecap="round" stroke-dasharray="{{ readyDash }}"/></svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font:700 22px/1 'JetBrains Mono';color:{{ readyColor }}">{{ readyScore }}</span></div>
+              </div>
+              <div><div style="font:700 16px/1.2 'Space Grotesk';color:{{ readyColor }};margin-bottom:4px">{{ readyVerdict }}</div><div style="font:500 12px/1.4 'Space Grotesk';color:#b8b0a0">{{ readyPassN }} of {{ readyTotalN }} checks passed</div></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <sc-for list="{{ readyChecks }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:18px;height:18px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font:700 11px 'Space Grotesk';background:{{ c.bg }};color:{{ c.fg }}">{{ c.mark }}</span>
+                  <span style="flex:1;font:500 12.5px/1.2 'Space Grotesk';color:#cdc6b8">{{ c.label }}</span>
+                  <span style="font:600 12px 'JetBrains Mono';color:{{ c.fg }}">{{ c.detail }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <button onClick="{{ tTrades }}" style="margin-top:18px;width:100%;background:{{ deployBg }};border:1px solid {{ deployBorder }};color:{{ deployColor }};font:700 13px 'Space Grotesk';padding:12px;border-radius:10px;cursor:pointer">{{ deployLabel }}</button>
+          </div>
+        </div>
+
+        <!-- heatmap + win/loss -->
+        <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:16px;align-items:start">
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px">
+            <div style="font:600 14px/1 'Space Grotesk';margin-bottom:14px">Monthly Returns <span style="color:#5e574a;font-weight:500">%</span></div>
+            <div style="overflow-x:auto">
+              <div style="display:grid;grid-template-columns:42px repeat(12,1fr) 52px;gap:3px;min-width:560px">
+                <div></div>
+                <sc-for list="{{ monthHeaders }}" as="m" hint-placeholder-count="12"><div style="font:600 10px/1 'Space Grotesk';color:#5e574a;text-align:center;padding-bottom:4px">{{ m }}</div></sc-for>
+                <div style="font:600 10px/1 'Space Grotesk';color:#7c7565;text-align:center;padding-bottom:4px">YR</div>
+                <sc-for list="{{ heatRows }}" as="row" hint-placeholder-count="8">
+                  <div style="font:600 11px 'JetBrains Mono';color:#7c7565;display:flex;align-items:center">{{ row.year }}</div>
+                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="12"><div style="aspect-ratio:1.6;border-radius:4px;display:flex;align-items:center;justify-content:center;font:500 9.5px 'JetBrains Mono';background:{{ cell.bg }};color:{{ cell.fg }}">{{ cell.label }}</div></sc-for>
+                  <div style="border-radius:4px;display:flex;align-items:center;justify-content:center;font:700 10px 'JetBrains Mono';background:{{ row.total.bg }};color:{{ row.total.fg }}">{{ row.total.label }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px">
+            <div style="font:600 14px/1 'Space Grotesk';margin-bottom:8px">Trade Outcomes</div>
+            <div style="display:flex;align-items:center;gap:18px">
+              <div style="position:relative;width:128px;height:128px;flex:0 0 auto">
+                <svg viewBox="0 0 100 100" style="width:128px;height:128px"><sc-for list="{{ donutSlices }}" as="s" hint-placeholder-count="2"><path d="{{ s.path }}" fill="{{ s.color }}"/></sc-for></svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font:700 22px/1 'JetBrains Mono';color:#f2ede1">{{ winRateLabel }}</span><span style="font:500 10px 'Space Grotesk';color:#7c7565">win rate</span></div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:10px;height:10px;border-radius:3px;background:#37d27e"></span><div><div style="font:600 13px 'JetBrains Mono';color:#f2ede1">{{ winsN }}</div><div style="font:500 10px 'Space Grotesk';color:#7c7565">winning trades</div></div></div>
+                <div style="display:flex;align-items:center;gap:9px"><span style="width:10px;height:10px;border-radius:3px;background:#f0556a"></span><div><div style="font:600 13px 'JetBrains Mono';color:#f2ede1">{{ lossesN }}</div><div style="font:500 10px 'Space Grotesk';color:#7c7565">losing trades</div></div></div>
+                <div style="height:1px;background:#2a271f"></div>
+                <div><div style="font:600 13px 'JetBrains Mono';color:#37d27e">{{ avgWinLabel }}</div><div style="font:500 10px 'Space Grotesk';color:#7c7565">avg win / avg loss {{ avgLossLabel }}</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- secondary metrics -->
+        <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:6px 8px;display:grid;grid-template-columns:repeat(6,1fr)">
+          <sc-for list="{{ metrics2 }}" as="m" hint-placeholder-count="12"><div style="padding:13px 14px"><div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;margin-bottom:8px">{{ m.label }}</div><div style="font:600 16px/1 'JetBrains Mono';color:{{ m.color }}">{{ m.value }}</div></div></sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ===== TRADES ===== -->
+      <sc-if value="{{ isTrades }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Trade Log" style="padding:22px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+          <sc-for list="{{ tradeStats }}" as="s" hint-placeholder-count="5"><div style="background:#1a1813;border:1px solid #2a271f;border-radius:13px;padding:14px 16px"><div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565;margin-bottom:9px">{{ s.label }}</div><div style="font:700 20px/1 'JetBrains Mono';color:{{ s.color }}">{{ s.value }}</div></div></sc-for>
+        </div>
+        <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px">
+          <div style="font:600 13px/1 'Space Grotesk';margin-bottom:12px">P&amp;L per Trade <span style="color:#5e574a;font-weight:500">chronological</span></div>
+          <svg viewBox="0 0 1000 110" preserveAspectRatio="none" style="width:100%;height:90px"><line x1="0" y1="55" x2="1000" y2="55" stroke="#33302a" stroke-width="1" vector-effect="non-scaling-stroke"/><sc-for list="{{ tradeBars }}" as="b" hint-placeholder-count="40"><rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="{{ b.color }}"/></sc-for></svg>
+        </div>
+        <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #2a271f">
+            <div style="font:600 14px/1 'Space Grotesk'">Trade Log</div>
+            <div style="font:500 12px 'JetBrains Mono';color:#7c7565">{{ tradeCountLabel }}</div>
+            <div style="flex:1"></div>
+            <div style="display:flex;gap:6px">
+              <button onClick="{{ fAll }}" style="{{ fAllStyle }}">All</button>
+              <button onClick="{{ fWins }}" style="{{ fWinsStyle }}">Wins</button>
+              <button onClick="{{ fLosses }}" style="{{ fLossesStyle }}">Losses</button>
+            </div>
+          </div>
+          <div style="max-height:480px;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace">
+              <thead style="position:sticky;top:0;background:#161410;z-index:2"><tr>
+                <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 20px">#</th>
+                <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">SYMBOL</th>
+                <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">SIDE</th>
+                <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">ENTRY</th>
+                <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">EXIT</th>
+                <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">BARS</th>
+                <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">RETURN</th>
+                <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 12px">P&amp;L</th>
+                <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:10px 20px">EQUITY</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ tradeRows }}" as="t" hint-placeholder-count="20">
+                  <tr style="border-top:1px solid #221f19">
+                    <td style="font:500 12px 'JetBrains Mono';color:#5e574a;padding:9px 20px">{{ t.idx }}</td>
+                    <td style="font:600 12px 'JetBrains Mono';color:#f2ede1;padding:9px 12px">{{ t.sym }}</td>
+                    <td style="padding:9px 12px"><span style="font:600 10px 'Space Grotesk';color:#37d27e;background:#16271c;padding:3px 7px;border-radius:5px">{{ t.side }}</span></td>
+                    <td style="font:500 12px 'JetBrains Mono';color:#b8b0a0;padding:9px 12px">{{ t.entry }}</td>
+                    <td style="font:500 12px 'JetBrains Mono';color:#b8b0a0;padding:9px 12px">{{ t.exit }}</td>
+                    <td style="text-align:right;font:500 12px 'JetBrains Mono';color:#7c7565;padding:9px 12px">{{ t.bars }}</td>
+                    <td style="text-align:right;font:600 12px 'JetBrains Mono';color:{{ t.color }};padding:9px 12px">{{ t.ret }}</td>
+                    <td style="text-align:right;font:600 12px 'JetBrains Mono';color:{{ t.color }};padding:9px 12px">{{ t.pnl }}</td>
+                    <td style="text-align:right;font:500 12px 'JetBrains Mono';color:#b8b0a0;padding:9px 20px">{{ t.equity }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ===== MARKETS ===== -->
+      <sc-if value="{{ isMarkets }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Markets" style="padding:22px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:16px;align-items:start">
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px">
+            <div style="font:600 13px/1 'Space Grotesk';margin-bottom:16px">Capital Allocation</div>
+            <div style="display:flex;align-items:center;gap:16px">
+              <svg viewBox="0 0 100 100" style="width:120px;height:120px;flex:0 0 auto"><sc-for list="{{ allocSlices }}" as="s" hint-placeholder-count="5"><path d="{{ s.path }}" fill="{{ s.color }}"/></sc-for></svg>
+              <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                <sc-for list="{{ allocLegend }}" as="a" hint-placeholder-count="5"><div style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:2px;background:{{ a.color }}"></span><span style="flex:1;font:500 12px 'JetBrains Mono';color:#cdc6b8">{{ a.sym }}</span><span style="font:600 12px 'JetBrains Mono';color:#7c7565">{{ a.pct }}</span></div></sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px">
+            <div style="font:600 13px/1 'Space Grotesk';margin-bottom:16px">Market Split</div>
+            <sc-for list="{{ marketSplit }}" as="m" hint-placeholder-count="2">
+              <div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;margin-bottom:7px"><span style="font:600 12px 'Space Grotesk';color:#cdc6b8">{{ m.name }}</span><span style="font:600 12px 'JetBrains Mono';color:{{ m.retColor }}">{{ m.ret }}</span></div><div style="height:8px;background:#100f0c;border-radius:4px;overflow:hidden"><div style="height:100%;width:{{ m.width }};background:{{ m.color }};border-radius:4px"></div></div><div style="font:500 10px 'Space Grotesk';color:#7c7565;margin-top:5px">{{ m.detail }}</div></div>
+            </sc-for>
+          </div>
+          <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 20px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:12px"><div style="font:600 13px/1 'Space Grotesk'">Risk vs Return</div><div style="font:500 10px 'Space Grotesk';color:#7c7565">size = trades</div></div>
+            <div style="position:relative;height:165px">
+              <svg viewBox="0 0 320 165" style="width:100%;height:165px">
+                <line x1="34" y1="6" x2="34" y2="140" stroke="#2a271f" stroke-width="1"/><line x1="34" y1="140" x2="314" y2="140" stroke="#2a271f" stroke-width="1"/>
+                <sc-for list="{{ scatterPts }}" as="p" hint-placeholder-count="5"><circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="{{ p.r }}" fill="{{ p.fill }}" fill-opacity="0.55" stroke="{{ p.color }}" stroke-width="1.3"/><text x="{{ p.cx }}" y="{{ p.ty }}" text-anchor="middle" style="font:500 7px 'JetBrains Mono';fill:#b8b0a0">{{ p.sym }}</text></sc-for>
+                <text x="174" y="160" text-anchor="middle" style="font:500 9px 'Space Grotesk';fill:#5e574a">volatility →</text>
+                <text x="10" y="74" text-anchor="middle" transform="rotate(-90 10 74)" style="font:500 9px 'Space Grotesk';fill:#5e574a">CAGR →</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #2a271f"><div style="font:600 14px/1 'Space Grotesk'">Per-Symbol Performance</div><div style="flex:1"></div><div style="display:flex;gap:6px"><sc-for list="{{ sortButtons }}" as="b" hint-placeholder-count="4"><button onClick="{{ b.onClick }}" style="{{ b.style }}">{{ b.label }}</button></sc-for></div></div>
+          <table style="width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace">
+            <thead><tr>
+              <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 20px">SYMBOL</th>
+              <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 12px">MKT</th>
+              <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 12px">CAGR</th>
+              <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 12px">SHARPE</th>
+              <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 12px">MAX DD</th>
+              <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 12px">WIN%</th>
+              <th style="text-align:right;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 12px">TRADES</th>
+              <th style="text-align:left;font:600 10px 'Space Grotesk';letter-spacing:0.05em;color:#7c7565;padding:11px 20px;width:160px">CONTRIBUTION</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ marketRows }}" as="r" hint-placeholder-count="6">
+                <tr style="border-top:1px solid #221f19">
+                  <td style="font:600 13px 'JetBrains Mono';color:#f2ede1;padding:11px 20px">{{ r.sym }}</td>
+                  <td style="padding:11px 12px"><span style="font:600 10px 'Space Grotesk';color:{{ r.mktColor }};background:{{ r.mktBg }};padding:3px 7px;border-radius:5px">{{ r.market }}</span></td>
+                  <td style="text-align:right;font:600 12px 'JetBrains Mono';color:{{ r.cagrColor }};padding:11px 12px">{{ r.cagr }}</td>
+                  <td style="text-align:right;font:500 12px 'JetBrains Mono';color:{{ r.sharpeColor }};padding:11px 12px">{{ r.sharpe }}</td>
+                  <td style="text-align:right;font:500 12px 'JetBrains Mono';color:#f0556a;padding:11px 12px">{{ r.maxDD }}</td>
+                  <td style="text-align:right;font:500 12px 'JetBrains Mono';color:{{ r.winRateColor }};padding:11px 12px">{{ r.winRate }}</td>
+                  <td style="text-align:right;font:500 12px 'JetBrains Mono';color:#7c7565;padding:11px 12px">{{ r.trades }}</td>
+                  <td style="padding:11px 20px"><div style="height:7px;background:#100f0c;border-radius:4px;overflow:hidden"><div style="height:100%;width:{{ r.contribW }};background:{{ r.contribColor }};border-radius:4px"></div></div></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1320,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.SYMBOLS = {
+      AAPL:{m:'US',drift:0.24,vol:0.30}, MSFT:{m:'US',drift:0.22,vol:0.27}, NVDA:{m:'US',drift:0.41,vol:0.48},
+      AMZN:{m:'US',drift:0.23,vol:0.34}, GOOGL:{m:'US',drift:0.19,vol:0.28}, TSLA:{m:'US',drift:0.38,vol:0.58},
+      META:{m:'US',drift:0.21,vol:0.38}, JPM:{m:'US',drift:0.12,vol:0.24},
+      RELIANCE:{m:'NSE',drift:0.18,vol:0.29}, TCS:{m:'NSE',drift:0.16,vol:0.24}, INFY:{m:'NSE',drift:0.15,vol:0.27},
+      HDFCBANK:{m:'NSE',drift:0.14,vol:0.25}, ICICIBANK:{m:'NSE',drift:0.17,vol:0.28}, SBIN:{m:'NSE',drift:0.13,vol:0.33},
+      BHARTIARTL:{m:'NSE',drift:0.16,vol:0.30}, ITC:{m:'NSE',drift:0.11,vol:0.23}
+    };
+    this.STRATS = {
+      rsiMeanRev:{label:'RSI Mean Reversion', winRate:0.59, win:0.0165, loss:-0.0125, tpy:44, hold:6},
+      maCross:{label:'MA Crossover (Trend)', winRate:0.43, win:0.034, loss:-0.013, tpy:16, hold:24},
+      macd:{label:'MACD Momentum', winRate:0.51, win:0.024, loss:-0.0155, tpy:28, hold:11},
+      bollinger:{label:'Bollinger Band Breakout', winRate:0.55, win:0.026, loss:-0.0165, tpy:34, hold:9},
+      custom:{label:'Custom — my_strategy.pine', winRate:0.53, win:0.022, loss:-0.0145, tpy:30, hold:10}
+    };
+    this.PARAMDEFS = {
+      rsiMeanRev:[{key:'rsiLen',label:'RSI length',value:14,min:2,max:40,step:1,unit:''},{key:'oversold',label:'Oversold level',value:30,min:5,max:45,step:1,unit:''},{key:'overbought',label:'Overbought level',value:70,min:55,max:95,step:1,unit:''}],
+      maCross:[{key:'fastMA',label:'Fast MA',value:20,min:5,max:80,step:1,unit:''},{key:'slowMA',label:'Slow MA',value:50,min:30,max:250,step:5,unit:''}],
+      macd:[{key:'fast',label:'Fast EMA',value:12,min:4,max:30,step:1,unit:''},{key:'slow',label:'Slow EMA',value:26,min:15,max:60,step:1,unit:''},{key:'signal',label:'Signal',value:9,min:3,max:20,step:1,unit:''}],
+      bollinger:[{key:'bbLen',label:'BB length',value:20,min:8,max:60,step:1,unit:''},{key:'bbStd',label:'BB std-dev',value:2,min:1,max:4,step:0.1,unit:'σ'}],
+      custom:[{key:'lookback',label:'Lookback',value:20,min:5,max:80,step:1,unit:''},{key:'threshold',label:'Signal threshold',value:1.5,min:0.5,max:4,step:0.1,unit:'σ'}]
+    };
+    const cfg = this.defaultConfig();
+    const results = this.runBacktest(cfg);
+    this.state = { tab:'performance', lang:'pine', config:cfg, ranConfig:this.clone(cfg), results, dirty:false, tradeFilter:'all', logScale:false, sortKey:'cagr', editing:false };
+  }
+
+  clone(o){ return JSON.parse(JSON.stringify(o)); }
+  defaultConfig(){
+    return { strategy:'rsiMeanRev', market:'both', symbols:['AAPL','MSFT','NVDA','RELIANCE','INFY'],
+      startYear:2011, endYear:2025, capital:100000, posSize:100, commission:0.03, slippage:0.02,
+      stopLoss:5, takeProfit:10, timeframe:'1D', dataSource:'sample', apiProvider:'polygon', apiKey:'', csvName:'',
+      customCode:'', params:this.clone(this.defParams('rsiMeanRev')) };
+  }
+  // bars/day, trade-frequency & noise multipliers per timeframe
+  TF(){ return {'5m':{bpd:78,tpy:3.4,hold:0.18,noise:1.55},'15m':{bpd:26,tpy:2.3,hold:0.32,noise:1.3},'30m':{bpd:13,tpy:1.75,hold:0.5,noise:1.15},'1h':{bpd:7,tpy:1.4,hold:0.7,noise:1.05},'1D':{bpd:1,tpy:1,hold:1,noise:1}}; }
+  defParams(strat){ const o={}; (this.PARAMDEFS[strat]||[]).forEach(p=>o[p.key]=p.value); return o; }
+
+  // ---------- math helpers ----------
+  hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+  rng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  gauss(r){ let u=0,v=0; while(u===0)u=r(); while(v===0)v=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  mean(a){ return a.reduce((s,x)=>s+x,0)/(a.length||1); }
+  std(a){ const m=this.mean(a); return Math.sqrt(this.mean(a.map(x=>(x-m)*(x-m)))); }
+
+  tradingDays(sy,ey){ const days=[]; let d=new Date(Date.UTC(sy,0,1)); const end=new Date(Date.UTC(ey,11,31)); while(d<=end){ const wd=d.getUTCDay(); if(wd!==0&&wd!==6) days.push(new Date(d)); d=new Date(d.getTime()+86400000);} return days; }
+
+  // ---------- the simulator ----------
+  runBacktest(cfg){
+    const days = this.tradingDays(cfg.startYear, cfg.endYear);
+    const n = days.length;
+    const syms = (cfg.symbols&&cfg.symbols.length)?cfg.symbols:['AAPL'];
+    const strat = this.STRATS[cfg.strategy];
+    const seed = this.hash(JSON.stringify(cfg));
+    const rand = this.rng(seed);
+
+    // directional param nudges
+    let winRate=strat.winRate, avgWin=strat.win, avgLoss=strat.loss, tpy=strat.tpy;
+    const stop=cfg.stopLoss/100, target=cfg.takeProfit/100;
+    avgWin = Math.min(avgWin, target*0.7);          // target caps wins
+    avgLoss = Math.max(avgLoss, -stop*0.7);          // stop caps losses
+    if(target/Math.max(stop,0.001) > 2.2) winRate -= 0.05; // greedy target -> fewer wins
+    if(stop < 0.04) winRate -= 0.04;                 // tight stop -> whipsaw
+    const tf = (this.TF()[cfg.timeframe]||this.TF()['1D']);
+    tpy *= tf.tpy;                                   // intraday -> more trades
+    const holdBase = Math.max(2, strat.hold*tf.hold);
+    const divers = Math.sqrt(Math.min(syms.length,6));
+    const noiseScale = 0.011/divers*tf.noise;
+    const posFrac = Math.max(0.1, Math.min(1, cfg.posSize/100));
+    const enterProb = Math.min(0.92, tpy/252); // base
+    const rtCost = (cfg.commission+cfg.slippage)/100*2;
+
+    let equity=cfg.capital;
+    const eq=new Array(n), dd=new Array(n);
+    const trades=[];
+    let inPos=false, tradeRet=0, dayIn=0, holdT=0, entryIdx=0, entryEq=0, entrySym='', isWin=false;
+    let exposed=0, peak=equity, maxDD=0, ddStart=-1, maxDDdur=0;
+
+    for(let i=0;i<n;i++){
+      if(!inPos){
+        if(rand()<enterProb){
+          inPos=true; dayIn=0; entryIdx=i; entryEq=equity;
+          entrySym=syms[Math.floor(rand()*syms.length)];
+          isWin = rand()<winRate;
+          const mag = isWin ? avgWin*(0.45+1.55*rand()) : avgLoss*(0.45+1.55*rand());
+          tradeRet = isWin ? Math.min(mag, target) : Math.max(mag, -stop);
+          holdT = Math.max(2, Math.round(holdBase*(0.4+1.4*rand())));
+        }
+        eq[i]=equity;
+      } else {
+        dayIn++; exposed++;
+        const prog=Math.min(1,dayIn/holdT);
+        const unreal = tradeRet*prog*posFrac + this.gauss(rand)*noiseScale*posFrac;
+        eq[i]=equity*(1+unreal);
+        if(dayIn>=holdT){
+          const net=(tradeRet*posFrac)-rtCost*posFrac;
+          const before=equity; equity=equity*(1+net);
+          trades.push({sym:entrySym,side:'LONG',entryIdx,exitIdx:i,bars:dayIn,ret:net,pnl:equity-before,equity});
+          eq[i]=equity; inPos=false;
+        }
+      }
+      if(eq[i]>peak){ peak=eq[i]; if(ddStart>=0){ maxDDdur=Math.max(maxDDdur,i-ddStart);} ddStart=-1; }
+      else if(eq[i]<peak && ddStart<0){ ddStart=i; }
+      const d=(eq[i]/peak)-1; dd[i]=d; if(d<maxDD)maxDD=d;
+    }
+    if(ddStart>=0) maxDDdur=Math.max(maxDDdur,n-ddStart);
+
+    // benchmark — stable across strategy tweaks (seed off symbols+period only)
+    const bSeed=this.hash(syms.slice().sort().join(',')+cfg.startYear+cfg.endYear);
+    const bRand=this.rng(bSeed);
+    const bdrift=this.mean(syms.map(s=>this.SYMBOLS[s]?this.SYMBOLS[s].drift:0.12));
+    const bvol=this.mean(syms.map(s=>this.SYMBOLS[s]?this.SYMBOLS[s].vol:0.25))/divers*1.4;
+    const bench=new Array(n); let b=cfg.capital; const dD=bdrift/252, dV=bvol/Math.sqrt(252);
+    for(let i=0;i<n;i++){ bench[i]=b; b*=Math.exp(dD-0.5*dV*dV+dV*this.gauss(bRand)); }
+
+    // daily returns / sharpe / sortino
+    const rets=[]; for(let i=1;i<n;i++) rets.push(eq[i]/eq[i-1]-1);
+    const mu=this.mean(rets), sd=this.std(rets);
+    const downs=rets.filter(r=>r<0); const dsd=Math.sqrt(this.mean(downs.map(r=>r*r)))||sd;
+    const sharpe=sd? (mu/sd)*Math.sqrt(252):0;
+    const sortino=dsd? (mu/dsd)*Math.sqrt(252):0;
+    const vol=sd*Math.sqrt(252);
+    const years=n/252;
+    const totalRet=eq[n-1]/cfg.capital-1;
+    const cagr=Math.pow(eq[n-1]/cfg.capital,1/years)-1;
+    const benchRet=bench[n-1]/cfg.capital-1;
+    const benchCagr=Math.pow(bench[n-1]/cfg.capital,1/years)-1;
+
+    // rolling sharpe (126d)
+    const W=126, roll=new Array(n).fill(null);
+    for(let i=W;i<n;i++){ const w=rets.slice(i-W,i); const m=this.mean(w),s=this.std(w); roll[i]= s? (m/s)*Math.sqrt(252):0; }
+    const rollVals=roll.filter(x=>x!==null);
+    const avgRoll=this.mean(rollVals);
+
+    // trade stats
+    const wins=trades.filter(t=>t.ret>0), losses=trades.filter(t=>t.ret<=0);
+    const sumWin=wins.reduce((s,t)=>s+t.pnl,0), sumLoss=Math.abs(losses.reduce((s,t)=>s+t.pnl,0));
+    const profitFactor= sumLoss? sumWin/sumLoss : sumWin>0?9.99:0;
+    const winRateActual= trades.length? wins.length/trades.length:0;
+    const avgWinR= wins.length? this.mean(wins.map(t=>t.ret)):0;
+    const avgLossR= losses.length? this.mean(losses.map(t=>t.ret)):0;
+    const avgTrade= trades.length? this.mean(trades.map(t=>t.ret)):0;
+    const expectancy= winRateActual*avgWinR + (1-winRateActual)*avgLossR;
+    const bestM=trades.length?Math.max(...trades.map(t=>t.ret)):0;
+    const worstM=trades.length?Math.min(...trades.map(t=>t.ret)):0;
+    const avgBars= trades.length? this.mean(trades.map(t=>t.bars)):0;
+
+    // monthly returns
+    const monthly={}; let mKey=null, mStart=cfg.capital;
+    for(let i=0;i<n;i++){ const d=days[i]; const k=d.getUTCFullYear()+'-'+d.getUTCMonth(); if(mKey===null){mKey=k;mStart=eq[i];} if(k!==mKey){ const py=parseInt(mKey),pm=parseInt(mKey.split('-')[1]); const yr=mKey.split('-')[0]; const ret=eq[i-1]/mStart-1; if(!monthly[yr])monthly[yr]={}; monthly[yr][pm]=ret; mKey=k; mStart=eq[i]; } }
+    { const yr=mKey.split('-')[0],pm=parseInt(mKey.split('-')[1]); const ret=eq[n-1]/mStart-1; if(!monthly[yr])monthly[yr]={}; monthly[yr][pm]=ret; }
+
+    // per-symbol light sim
+    const perSym=syms.map(sym=>this.lightSym(sym,cfg,strat));
+    const totContrib=perSym.reduce((s,p)=>s+Math.max(0,p.totalRet),0)||1;
+    perSym.forEach(p=>p.contribution=Math.max(0,p.totalRet)/totContrib);
+
+    return { days, eq, bench, dd, roll, trades, monthly, perSym,
+      m:{ totalRet,cagr,sharpe,sortino,vol,maxDD,maxDDdur,exposure:exposed/n,benchRet,benchCagr,
+          profitFactor,winRate:winRateActual,avgWin:avgWinR,avgLoss:avgLossR,avgTrade,expectancy,
+          bestTrade:bestM,worstTrade:worstM,avgBars,avgRoll,nTrades:trades.length,years,
+          finalEq:eq[n-1],finalBench:bench[n-1],wins:wins.length,losses:losses.length } };
+  }
+
+  lightSym(sym,cfg,strat){
+    const info=this.SYMBOLS[sym]||{m:'US',drift:0.12,vol:0.25};
+    const s=this.rng(this.hash(sym+cfg.strategy+JSON.stringify(cfg.params)+cfg.startYear+cfg.endYear));
+    const years=cfg.endYear-cfg.startYear+1;
+    const driftAdj=1+(info.drift-0.2)*0.6;
+    const volAdj=info.vol/0.28;
+    const ntr=Math.max(8,Math.round(strat.tpy*years*(0.7+0.6*s())*0.7));
+    let wins=0,sumW=0,sumL=0,eq=1,peak=1,maxdd=0; const rets=[];
+    for(let k=0;k<ntr;k++){ const win=s()<strat.winRate*(0.92+0.16*s()); const r=(win?strat.win*driftAdj:strat.loss)*(0.4+1.6*s())*volAdj; rets.push(r); eq*=(1+r); peak=Math.max(peak,eq); maxdd=Math.max(maxdd,1-eq/peak); if(win){wins++;sumW+=r;}else sumL+=r; }
+    const cagr=Math.pow(Math.max(eq,0.01),1/years)-1;
+    const vol=this.std(rets)*Math.sqrt(strat.tpy);
+    const sharpe=vol?(this.mean(rets)*strat.tpy)/vol:0;
+    return { sym, market:info.m, cagr, sharpe, maxDD:maxdd, winRate:ntr?wins/ntr:0, trades:ntr, vol, totalRet:eq-1 };
+  }
+
+  // ---------- formatting ----------
+  pct(x,dp=1,sign=false){ if(x==null||isNaN(x))return '–'; const v=(x*100); return (sign&&v>0?'+':'')+v.toFixed(dp)+'%'; }
+  money(x){ if(x==null||isNaN(x))return '–'; return '$'+Math.round(x).toLocaleString('en-US'); }
+  moneyShort(x){ const a=Math.abs(x); if(a>=1e6)return '$'+(x/1e6).toFixed(2)+'M'; if(a>=1e3)return '$'+(x/1e3).toFixed(0)+'K'; return '$'+x.toFixed(0); }
+  num(x,dp=2){ if(x==null||isNaN(x))return '–'; return x.toFixed(dp); }
+  fmtDate(d){ const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return String(d.getUTCDate()).padStart(2,'0')+' '+mo[d.getUTCMonth()]+" '"+String(d.getUTCFullYear()).slice(2); }
+
+  // ---------- chart geometry ----------
+  linePath(vals,w,h,lo,hi,log){ const n=vals.length; if(!n)return ''; const f=log?Math.log:(v=>v); const L=log?Math.log(lo):lo, H=log?Math.log(hi):hi; const step=Math.max(1,Math.floor(n/700)); let p=''; for(let i=0;i<n;i+=step){ const x=(i/(n-1))*w; const y=h-((f(vals[i])-L)/((H-L)||1))*h; p+=(p?' L':'M')+x.toFixed(1)+','+Math.max(0,Math.min(h,y)).toFixed(1); } const lx=w, ly=h-((f(vals[n-1])-L)/((H-L)||1))*h; p+=' L'+lx.toFixed(1)+','+Math.max(0,Math.min(h,ly)).toFixed(1); return p; }
+  arcPath(cx,cy,ro,ri,a0,a1){ const p=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)]; const large=(a1-a0)>Math.PI?1:0; const[x0,y0]=p(ro,a0),[x1,y1]=p(ro,a1),[x2,y2]=p(ri,a1),[x3,y3]=p(ri,a0); return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${ro} ${ro} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} L${x2.toFixed(2)} ${y2.toFixed(2)} A${ri} ${ri} 0 ${large} 0 ${x3.toFixed(2)} ${y3.toFixed(2)} Z`; }
+  heatBg(r){ const cap=0.07; let t=Math.max(-1,Math.min(1,r/cap)); if(t>=0)return `rgba(55,210,126,${(0.1+0.78*t).toFixed(2)})`; return `rgba(240,85,106,${(0.1+0.78*(-t)).toFixed(2)})`; }
+  heatFg(r){ return Math.abs(r)>0.04?'#100f0c':'#9b9384'; }
+
+  // ---------- actions ----------
+  setTab(t){ this.setState({tab:t}); }
+  markDirty(){ this.setState({dirty:JSON.stringify(this.state.config)!==JSON.stringify(this.state.ranConfig)}); }
+  setCfg(patch){ this.setState(s=>({config:{...s.config,...patch}}),()=>this.markDirty()); }
+  setParam(key,val){ this.setState(s=>({config:{...s.config,params:{...s.config.params,[key]:val}}}),()=>this.markDirty()); }
+  setStrategy(strat){ this.setState(s=>({config:{...s.config,strategy:strat,params:this.clone(this.defParams(strat)),customCode:''}}),()=>this.markDirty()); }
+  onCodeInput(text){ this.setState(s=>{ const wasCustom=s.config.strategy==='custom'; const params=wasCustom?s.config.params:this.clone(this.defParams('custom')); return {config:{...s.config,customCode:text,strategy:'custom',params}}; },()=>this.markDirty()); }
+  toggleEdit(){ this.setState(s=>({editing:!s.editing})); }
+  setMarket(mk){ this.setState(s=>{ let syms=s.config.symbols.filter(sy=> mk==='both'||(this.SYMBOLS[sy]&&this.SYMBOLS[sy].m.toLowerCase()===mk)); if(!syms.length){ syms=Object.keys(this.SYMBOLS).filter(sy=>mk==='both'||this.SYMBOLS[sy].m.toLowerCase()===mk).slice(0,4);} return {config:{...s.config,market:mk,symbols:syms}}; },()=>this.markDirty()); }
+  toggleSym(sym){ this.setState(s=>{ const has=s.config.symbols.includes(sym); let syms=has?s.config.symbols.filter(x=>x!==sym):[...s.config.symbols,sym]; if(!syms.length)syms=[sym]; return {config:{...s.config,symbols:syms}}; },()=>this.markDirty()); }
+  setPeriod(yrs){ this.setCfg({startYear:2025-yrs+1,endYear:2025}); }
+  run(){ this.setState(s=>({ranConfig:this.clone(s.config),results:this.runBacktest(s.config),dirty:false,tab:s.tab==='lab'?'performance':s.tab})); }
+  reset(){ const cfg=this.defaultConfig(); this.setState({config:cfg,ranConfig:this.clone(cfg),results:this.runBacktest(cfg),dirty:false}); }
+
+  // ---------- code generation ----------
+  genCode(cfg,lang){
+    const st=this.STRATS[cfg.strategy].label, p=cfg.params;
+    if(lang==='pine'){
+      let lines=[`//@version=5`,`// ${st}`,`strategy("${st}", overlay=true, initial_capital=${cfg.capital},`,`     commission_type=strategy.commission.percent, commission_value=${cfg.commission})`,``];
+      if(cfg.strategy==='rsiMeanRev'){ lines.push(`len      = input.int(${p.rsiLen}, "RSI Length")`,`os       = input.int(${p.oversold}, "Oversold")`,`ob       = input.int(${p.overbought}, "Overbought")`,``,`r = ta.rsi(close, len)`,`longEntry  = ta.crossover(r, os)`,`longExit   = ta.crossunder(r, ob)`); }
+      else if(cfg.strategy==='maCross'){ lines.push(`fast = input.int(${p.fastMA}, "Fast MA")`,`slow = input.int(${p.slowMA}, "Slow MA")`,``,`maF = ta.sma(close, fast)`,`maS = ta.sma(close, slow)`,`longEntry = ta.crossover(maF, maS)`,`longExit  = ta.crossunder(maF, maS)`); }
+      else if(cfg.strategy==='macd'){ lines.push(`[macdLine, sig, _] = ta.macd(close, ${p.fast}, ${p.slow}, ${p.signal})`,``,`longEntry = ta.crossover(macdLine, sig)`,`longExit  = ta.crossunder(macdLine, sig)`); }
+      else if(cfg.strategy==='bollinger'){ lines.push(`len = input.int(${p.bbLen}, "BB Length")`,`mult = input.float(${p.bbStd}, "Std Dev")`,``,`basis = ta.sma(close, len)`,`dev = mult * ta.stdev(close, len)`,`longEntry = ta.crossover(close, basis + dev)`,`longExit  = ta.crossunder(close, basis)`); }
+      else { lines.push(`lb  = input.int(${p.lookback}, "Lookback")`,`thr = input.float(${p.threshold}, "Threshold")`,``,`z = (close - ta.sma(close, lb)) / ta.stdev(close, lb)`,`longEntry = ta.crossover(z, thr)`,`longExit  = ta.crossunder(z, 0)`); }
+      lines.push(``,`if longEntry`,`    strategy.entry("L", strategy.long)`,`strategy.exit("X", "L",`,`     stop  = close * (1 - ${cfg.stopLoss}/100.0),`,`     limit = close * (1 + ${cfg.takeProfit}/100.0))`,`if longExit`,`    strategy.close("L")`);
+      return lines;
+    } else {
+      let lines=[`import pandas as pd, numpy as np`,`from backtest import Strategy, run`,``,`# ${st}`,`class MyStrategy(Strategy):`,`    capital   = ${cfg.capital}`,`    stop_loss = ${cfg.stopLoss/100}`,`    take_profit = ${cfg.takeProfit/100}`,``,`    def signals(self, df):`];
+      if(cfg.strategy==='rsiMeanRev'){ lines.push(`        rsi = ta.rsi(df.close, ${p.rsiLen})`,`        df['long']  = cross_over(rsi, ${p.oversold})`,`        df['close'] = cross_under(rsi, ${p.overbought})`); }
+      else if(cfg.strategy==='maCross'){ lines.push(`        f = df.close.rolling(${p.fastMA}).mean()`,`        s = df.close.rolling(${p.slowMA}).mean()`,`        df['long']  = cross_over(f, s)`,`        df['close'] = cross_under(f, s)`); }
+      else if(cfg.strategy==='macd'){ lines.push(`        macd, sig = ta.macd(df.close, ${p.fast}, ${p.slow}, ${p.signal})`,`        df['long']  = cross_over(macd, sig)`,`        df['close'] = cross_under(macd, sig)`); }
+      else if(cfg.strategy==='bollinger'){ lines.push(`        b = df.close.rolling(${p.bbLen}).mean()`,`        d = ${p.bbStd} * df.close.rolling(${p.bbLen}).std()`,`        df['long']  = df.close > b + d`,`        df['close'] = df.close < b`); }
+      else { lines.push(`        z = (df.close - df.close.rolling(${p.lookback}).mean()) \\`,`               / df.close.rolling(${p.lookback}).std()`,`        df['long']  = z > ${p.threshold}`,`        df['close'] = z < 0`); }
+      lines.push(`        return df`,``,`run(MyStrategy, symbols=${JSON.stringify(cfg.symbols)},`,`    start="${cfg.startYear}-01-01", end="${cfg.endYear}-12-31",`,`    commission=${cfg.commission/100}, slippage=${cfg.slippage/100})`);
+      return lines;
+    }
+  }
+
+  // ---------- styles ----------
+  navStyle(active){ return `display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:${active?'#23201a':'transparent'};border:1px solid ${active?'#46412f':'transparent'};color:${active?'#ff8a3d':'#9b9384'};font:600 13px 'Space Grotesk';padding:11px 12px;border-radius:10px;cursor:pointer;transition:.12s`; }
+  segStyle(active,color){ color=color||'#ff8a3d'; return `background:${active?'#23201a':'#100f0c'};border:1px solid ${active?'#46412f':'#2a271f'};color:${active?color:'#7c7565'};font:600 12px 'Space Grotesk';padding:7px 13px;border-radius:8px;cursor:pointer`; }
+  chipStyle(on){ return `background:${on?'#3a2a16':'#100f0c'};border:1px solid ${on?'#ff8a3d':'#33302a'};color:${on?'#ff8a3d':'#9b9384'};font:600 11px 'JetBrains Mono';padding:6px 10px;border-radius:7px;cursor:pointer`; }
+  langStyle(active){ return `background:${active?'#23201a':'transparent'};border:none;border-bottom:2px solid ${active?'#ff8a3d':'transparent'};color:${active?'#f2ede1':'#7c7565'};font:600 12px 'Space Grotesk';padding:7px 12px;cursor:pointer`; }
+
+  renderVals(){
+    const S=this.state, R=S.results, cfg=S.config, rcfg=S.ranConfig, m=R.m;
+    const P=v=>this.pct(v), num=(v,d)=>this.num(v,d);
+
+    // ---- header / shell ----
+    const symList=cfg.symbols;
+    const mkLabel = rcfg.market==='both'?'US + NSE':rcfg.market.toUpperCase();
+    const vals={
+      isLab:S.tab==='lab', isPerf:S.tab==='performance', isTrades:S.tab==='trades', isMarkets:S.tab==='markets',
+      tLab:()=>this.setTab('lab'), tPerf:()=>this.setTab('performance'), tTrades:()=>this.setTab('trades'), tMarkets:()=>this.setTab('markets'),
+      navLab:this.navStyle(S.tab==='lab'), navPerf:this.navStyle(S.tab==='performance'), navTrades:this.navStyle(S.tab==='trades'), navMarkets:this.navStyle(S.tab==='markets'),
+      run:()=>this.run(), reset:()=>this.reset(), dirty:S.dirty,
+      stratLabel:this.STRATS[rcfg.strategy].label, marketLabel:mkLabel,
+      periodLabel:`${rcfg.startYear}–${rcfg.endYear} · ${Math.round(m.years)}Y`,
+      symbolsLabel:`${rcfg.symbols.length} symbols`, barsLabel:`${(rcfg.timeframe||'1D')} · ${R.eq.length.toLocaleString('en-US')} bars`,
+    };
+
+    // ---- readiness gate ----
+    const checks=[
+      {label:'Sharpe ratio ≥ 1.0', pass:m.sharpe>=1.0, detail:num(m.sharpe,2)},
+      {label:'Max drawdown ≤ 25%', pass:Math.abs(m.maxDD)<=0.25, detail:P(m.maxDD)},
+      {label:'Profit factor ≥ 1.5', pass:m.profitFactor>=1.5, detail:num(m.profitFactor,2)},
+      {label:'Sample size ≥ 150 trades', pass:m.nTrades>=150, detail:String(m.nTrades)},
+      {label:'Beats buy & hold', pass:m.cagr>m.benchCagr, detail:P(m.cagr-m.benchCagr,1,true)},
+      {label:'Positive expectancy', pass:m.expectancy>0, detail:P(m.expectancy,2,true)},
+    ];
+    const passN=checks.filter(c=>c.pass).length, totalN=checks.length;
+    const score=Math.round(passN/totalN*100);
+    const rColor= score>=84?'#37d27e':score>=50?'#f5c542':'#f0556a';
+    const verdict= score>=84?'Ready to deploy':score>=50?'Needs hardening':'Not deployable';
+    Object.assign(vals,{
+      readyScore:score, readyPct:score+'%', readyColor:rColor, readyVerdict:verdict,
+      readyDash:`${(score/100*264).toFixed(0)} 264`, readyPassN:passN, readyTotalN:totalN,
+      readyChecks:checks.map(c=>({label:c.label, detail:c.detail, mark:c.pass?'✓':'✕', bg:c.pass?'#16271c':'#2c1518', fg:c.pass?'#37d27e':'#f0556a'})),
+      deployLabel: score>=84?'Send to paper trading →': score>=50?'Run walk-forward test →':'Review strategy in Lab →',
+      deployBg: score>=84?'#16271c':'#23201a', deployBorder: score>=84?'#2a5a3a':'#46412f', deployColor: score>=84?'#37d27e':'#ff8a3d',
+    });
+
+    // ---- LAB ----
+    const hasCustom = cfg.customCode && cfg.customCode.trim().length>0;
+    const codeArr = hasCustom ? cfg.customCode.split('\n') : this.genCode(cfg,S.lang);
+    const codeText = codeArr.join('\n');
+    const codeLines=codeArr.map((t,i)=>{ const trimmed=t.trim(); const isComment= trimmed.startsWith('//')||trimmed.startsWith('#'); let color='#d8d1c2'; if(isComment)color='#6b6557'; else if(/input|strategy\.|def |class |import |run\(|return/.test(t))color='#f5c542'; else if(/cross_|ta\.|rolling|crossover|crossunder/.test(t))color='#ff8a3d'; return {num:i+1,text:t||' ',color}; });
+    const pdefs=this.PARAMDEFS[cfg.strategy]||[];
+    const TFlist=['5m','15m','30m','1h','1D'];
+    const PROV={polygon:'Polygon.io',alpaca:'Alpaca',kite:'Zerodha Kite',upstox:'Upstox',yahoo:'Yahoo Finance'};
+    Object.assign(vals,{
+      lang:S.lang, pine:()=>this.setState({lang:'pine'}), python:()=>this.setState({lang:'python'}),
+      langPine:this.langStyle(S.lang==='pine'), langPy:this.langStyle(S.lang==='python'),
+      codeLines, strategyKey:cfg.strategy,
+      strategyOptions:Object.keys(this.STRATS).map(k=>({key:k,label:this.STRATS[k].label})),
+      onStrategy:(e)=>this.setStrategy(e.target.value),
+      mBoth:()=>this.setMarket('both'), mUS:()=>this.setMarket('us'), mNSE:()=>this.setMarket('nse'),
+      mBothStyle:this.segStyle(cfg.market==='both'), mUSStyle:this.segStyle(cfg.market==='us'), mNSEStyle:this.segStyle(cfg.market==='nse'),
+      showUS:cfg.market!=='nse', showNSE:cfg.market!=='us',
+      usSymbols:Object.keys(this.SYMBOLS).filter(s=>this.SYMBOLS[s].m==='US').map(s=>({sym:s,style:this.chipStyle(cfg.symbols.includes(s)),toggle:()=>this.toggleSym(s)})),
+      nseSymbols:Object.keys(this.SYMBOLS).filter(s=>this.SYMBOLS[s].m==='NSE').map(s=>({sym:s,style:this.chipStyle(cfg.symbols.includes(s)),toggle:()=>this.toggleSym(s)})),
+      startYear:cfg.startYear, endYear:cfg.endYear,
+      onStart:(e)=>this.setCfg({startYear:Math.min(+e.target.value,cfg.endYear-1)}),
+      onEnd:(e)=>this.setCfg({endYear:Math.max(+e.target.value,cfg.startYear+1)}),
+      p10:()=>this.setPeriod(10), p15:()=>this.setPeriod(15),
+      p10Style:this.segStyle(cfg.endYear-cfg.startYear+1===10), p15Style:this.segStyle(cfg.endYear-cfg.startYear+1===15),
+      capital:cfg.capital, posSize:cfg.posSize, commission:cfg.commission, slippage:cfg.slippage, stopLoss:cfg.stopLoss, takeProfit:cfg.takeProfit,
+      onCapital:(e)=>this.setCfg({capital:Math.max(1000,+e.target.value||0)}), onPos:(e)=>this.setCfg({posSize:Math.max(1,Math.min(100,+e.target.value||0))}),
+      onComm:(e)=>this.setCfg({commission:Math.max(0,+e.target.value||0)}), onSlip:(e)=>this.setCfg({slippage:Math.max(0,+e.target.value||0)}),
+      onStop:(e)=>this.setCfg({stopLoss:+e.target.value}), onTarget:(e)=>this.setCfg({takeProfit:+e.target.value}),
+      params:pdefs.map(p=>({label:p.label,min:p.min,max:p.max,step:p.step,value:cfg.params[p.key],display:(cfg.params[p.key])+(p.unit?(' '+p.unit):''),onInput:(e)=>this.setParam(p.key,p.step<1?parseFloat(e.target.value):parseInt(e.target.value))})),
+      // editable code
+      editing:S.editing, notEditing:!S.editing, codeText, hasCustom,
+      editLabel:S.editing?'✓ Done':'✎ Edit code', editStyle:this.segStyle(S.editing),
+      onCodeInput:(e)=>this.onCodeInput(e.target.value), toggleEdit:()=>this.toggleEdit(),
+      codeBadge: hasCustom?'custom code · '+codeArr.length+' lines':(S.lang==='pine'?'Pine Script v5':'Python')+' · generated',
+      // timeframe
+      tfButtons:TFlist.map(tf=>({label:tf,onClick:()=>this.setCfg({timeframe:tf}),style:this.segStyle(cfg.timeframe===tf)})),
+      tfNote: cfg.timeframe==='1D' ? 'Daily — recommended for 10–15Y swing backtests.' : 'Intraday ('+cfg.timeframe+') — higher trade count & data volume; best for ≤3Y windows in production.',
+      // data source
+      dsSample:()=>this.setCfg({dataSource:'sample'}), dsApi:()=>this.setCfg({dataSource:'api'}), dsCsv:()=>this.setCfg({dataSource:'csv'}),
+      dsSampleStyle:this.segStyle(cfg.dataSource==='sample'), dsApiStyle:this.segStyle(cfg.dataSource==='api'), dsCsvStyle:this.segStyle(cfg.dataSource==='csv'),
+      showApi:cfg.dataSource==='api', showCsv:cfg.dataSource==='csv', showSample:cfg.dataSource==='sample',
+      apiProvider:cfg.apiProvider, apiKey:cfg.apiKey,
+      onProvider:(e)=>this.setCfg({apiProvider:e.target.value}), onApiKey:(e)=>this.setCfg({apiKey:e.target.value}),
+      providerOptions:Object.keys(PROV).map(k=>({key:k,label:PROV[k]})),
+      onCsv:(e)=>{ const f=e.target.files&&e.target.files[0]; if(f)this.setCfg({csvName:f.name}); },
+      csvName:cfg.csvName, csvStatus: cfg.csvName? ('Loaded '+cfg.csvName+' · '+R.eq.length.toLocaleString('en-US')+' rows') : 'No file selected',
+      apiStatus: cfg.apiKey? ('Connected to '+PROV[cfg.apiProvider]+' · key •••'+cfg.apiKey.slice(-4)) : ('Enter '+PROV[cfg.apiProvider]+' API key'),
+      dsFooter: cfg.dataSource==='sample'?'Data source: built-in synthetic OHLCV (offline)':cfg.dataSource==='api'?('Data source: '+PROV[cfg.apiProvider]+' API'):('Data source: uploaded CSV'+(cfg.csvName?(' — '+cfg.csvName):'')),
+    });
+
+    // ---- PERFORMANCE charts ----
+    const eq=R.eq, bench=R.bench, n=eq.length;
+    const lo=Math.min(...eq,...bench)*0.96, hi=Math.max(...eq,...bench)*1.03;
+    vals.eqLinePath=this.linePath(eq,1000,300,lo,hi,S.logScale);
+    vals.benchLinePath=this.linePath(bench,1000,300,lo,hi,S.logScale);
+    vals.eqAreaPath=vals.eqLinePath+' L1000,300 L0,300 Z';
+    const ny=5, yticks=[]; for(let i=0;i<ny;i++){ const frac=i/(ny-1); const v=S.logScale?Math.exp(Math.log(lo)+(Math.log(hi)-Math.log(lo))*(1-frac)):lo+(hi-lo)*(1-frac); yticks.push({label:this.moneyShort(v)}); } vals.eqYTicks=yticks;
+    const nx=6, xticks=[]; for(let i=0;i<nx;i++){ const idx=Math.floor((n-1)*i/(nx-1)); xticks.push({label:String(R.days[idx].getUTCFullYear())}); } vals.eqXTicks=xticks;
+    vals.finalEqLabel=this.moneyShort(m.finalEq); vals.finalBenchLabel=this.moneyShort(m.finalBench);
+    vals.logScale=S.logScale; vals.toggleLog=()=>this.setState(s=>({logScale:!s.logScale})); vals.logStyle=this.segStyle(S.logScale); vals.logLabel=S.logScale?'Log scale':'Linear scale';
+
+    // drawdown
+    const ddlo=Math.min(...R.dd)*1.08;
+    vals.ddLinePath=this.linePath(R.dd,1000,130,ddlo,0,false);
+    vals.ddAreaPath='M0,0 '+this.linePath(R.dd,1000,130,ddlo,0,false).replace('M','L')+' L1000,0 Z';
+    vals.maxDDLabel=P(m.maxDD);
+
+    // rolling sharpe
+    const rfill=R.roll.map(v=>v===null?0:v); const rlo=Math.min(-0.5,...rfill), rhi=Math.max(2,...rfill);
+    vals.rsLinePath=this.linePath(rfill,1000,130,rlo,rhi,false);
+    vals.rsZeroY=(130-((0-rlo)/((rhi-rlo)||1))*130).toFixed(1);
+    vals.rsOneY=(130-((1-rlo)/((rhi-rlo)||1))*130).toFixed(1);
+    vals.avgRSLabel=num(m.avgRoll,2);
+
+    // hero cards — green/red reserved for performance data
+    const tone=v=>v>=0?'#37d27e':'#f0556a';
+    const rtone=(v,th)=>v>=th?'#37d27e':'#f0556a';
+    vals.avgRSColor=rtone(m.avgRoll,1);
+    vals.heroCards=[
+      {label:'TOTAL RETURN', value:P(m.totalRet,0,true), valColor:tone(m.totalRet), tone:tone(m.totalRet), sub:'vs '+P(m.benchRet,0,true)+' B&H', subColor:'#7c7565'},
+      {label:'CAGR', value:P(m.cagr,1), valColor:tone(m.cagr), tone:tone(m.cagr), sub:'annualized · '+Math.round(m.years)+'Y', subColor:'#7c7565'},
+      {label:'SHARPE', value:num(m.sharpe,2), valColor:rtone(m.sharpe,1), tone:rtone(m.sharpe,1), sub:'Sortino '+num(m.sortino,2), subColor:'#7c7565'},
+      {label:'MAX DRAWDOWN', value:P(m.maxDD), valColor:'#f0556a', tone:'#f0556a', sub:Math.round(m.maxDDdur/21)+' mo underwater', subColor:'#7c7565'},
+      {label:'WIN RATE', value:P(m.winRate,0), valColor:rtone(m.winRate,0.5), tone:rtone(m.winRate,0.5), sub:m.wins+'W / '+m.losses+'L', subColor:'#7c7565'},
+      {label:'PROFIT FACTOR', value:num(m.profitFactor,2), valColor:rtone(m.profitFactor,1.5), tone:rtone(m.profitFactor,1.5), sub:'expectancy '+P(m.expectancy,2,true), subColor:'#7c7565'},
+    ];
+    // secondary
+    vals.metrics2=[
+      {label:'VOLATILITY',value:P(m.vol,1),color:'#cdc6b8'},{label:'SORTINO',value:num(m.sortino,2),color:rtone(m.sortino,1)},
+      {label:'EXPOSURE',value:P(m.exposure,0),color:'#cdc6b8'},{label:'AVG TRADE',value:P(m.avgTrade,2,true),color:tone(m.avgTrade)},
+      {label:'AVG WIN',value:P(m.avgWin,2,true),color:'#37d27e'},{label:'AVG LOSS',value:P(m.avgLoss,2),color:'#f0556a'},
+      {label:'BEST TRADE',value:P(m.bestTrade,1,true),color:'#37d27e'},{label:'WORST TRADE',value:P(m.worstTrade,1),color:'#f0556a'},
+      {label:'AVG HOLD',value:Math.round(m.avgBars)+'d',color:'#cdc6b8'},{label:'TOTAL TRADES',value:String(m.nTrades),color:'#cdc6b8'},
+      {label:'FINAL EQUITY',value:this.moneyShort(m.finalEq),color:tone(m.totalRet)},{label:'DD DURATION',value:Math.round(m.maxDDdur/21)+'mo',color:'#cdc6b8'},
+    ];
+    // win/loss donut
+    const wr=m.winRate; const a0=-Math.PI/2, aw=a0+wr*2*Math.PI;
+    vals.donutSlices=[{path:this.arcPath(50,50,46,30,a0,aw),color:'#37d27e'},{path:this.arcPath(50,50,46,30,aw,a0+2*Math.PI-0.0001),color:'#f0556a'}];
+    vals.winRateLabel=P(wr,0); vals.winsN=m.wins; vals.lossesN=m.losses; vals.avgWinLabel=P(m.avgWin,2,true); vals.avgLossLabel=P(m.avgLoss,2);
+
+    // heatmap
+    const mh=['J','F','M','A','M','J','J','A','S','O','N','D']; vals.monthHeaders=mh;
+    const yrs=Object.keys(R.monthly).sort();
+    vals.heatRows=yrs.map(yr=>{ const row=R.monthly[yr]; let yt=1; const cells=[]; for(let mo=0;mo<12;mo++){ const v=row[mo]; if(v==null){ cells.push({label:'',bg:'#161410',fg:'#161410'}); } else { yt*=(1+v); cells.push({label:(v*100).toFixed(0),bg:this.heatBg(v),fg:this.heatFg(v)}); } } const yr_=yt-1; return {year:yr, cells, total:{label:(yr_*100).toFixed(0), bg:this.heatBg(yr_/2), fg:this.heatFg(yr_/2)}}; });
+
+    // ---- TRADES ----
+    const allT=R.trades;
+    const filtered= S.tradeFilter==='wins'?allT.filter(t=>t.ret>0): S.tradeFilter==='losses'?allT.filter(t=>t.ret<=0): allT;
+    vals.tradeFilter=S.tradeFilter;
+    vals.fAll=()=>this.setState({tradeFilter:'all'}); vals.fWins=()=>this.setState({tradeFilter:'wins'}); vals.fLosses=()=>this.setState({tradeFilter:'losses'});
+    vals.fAllStyle=this.segStyle(S.tradeFilter==='all'); vals.fWinsStyle=this.segStyle(S.tradeFilter==='wins','#37d27e'); vals.fLossesStyle=this.segStyle(S.tradeFilter==='losses','#f0556a');
+    vals.tradeCountLabel=`${filtered.length} of ${allT.length}`;
+    vals.tradeRows=filtered.map((t,i)=>({idx:String(i+1).padStart(3,'0'),sym:t.sym,side:t.side,entry:this.fmtDate(R.days[t.entryIdx]),exit:this.fmtDate(R.days[t.exitIdx]),bars:t.bars,ret:this.pct(t.ret,2,true),pnl:(t.pnl>=0?'+':'')+this.money(Math.abs(t.pnl)).replace('$',t.pnl<0?'-$':'$'),equity:this.moneyShort(t.equity),color:t.ret>=0?'#37d27e':'#f0556a'}));
+    vals.tradeStats=[
+      {label:'TOTAL TRADES',value:String(allT.length),color:'#f2ede1'},
+      {label:'WIN RATE',value:P(m.winRate,0),color:'#37d27e'},
+      {label:'PROFIT FACTOR',value:num(m.profitFactor,2),color:rtone(m.profitFactor,1.5)},
+      {label:'AVG WIN / LOSS',value:num(Math.abs(m.avgWin/(m.avgLoss||-1)),2),color:rtone(Math.abs(m.avgWin/(m.avgLoss||-1)),1)},
+      {label:'EXPECTANCY',value:P(m.expectancy,2,true),color:tone(m.expectancy)},
+    ];
+    const tb= allT.length; const step=Math.max(1,Math.ceil(tb/160)); const sampled=[]; for(let i=0;i<tb;i+=step)sampled.push(allT[i]);
+    const maxAbs=Math.max(...allT.map(t=>Math.abs(t.ret)),0.01);
+    vals.tradeBars=sampled.map((t,i)=>{ const w=1000/sampled.length; const h=Math.abs(t.ret)/maxAbs*52; return {x:(i*w+0.5).toFixed(1),w:Math.max(1,w-1).toFixed(1),y:(t.ret>=0?55-h:55).toFixed(1),h:h.toFixed(1),color:t.ret>=0?'#37d27e':'#f0556a'}; });
+
+    // ---- MARKETS ----
+    const sortKey=S.sortKey;
+    const ps=R.perSym.slice().sort((a,b)=> (b[sortKey]||0)-(a[sortKey]||0));
+    const maxContrib=Math.max(...ps.map(p=>p.contribution),0.01);
+    vals.marketRows=ps.map(p=>({sym:p.sym,market:p.market,mktColor:p.market==='US'?'#ff8a3d':'#f5c542',mktBg:p.market==='US'?'#2a1d10':'#2a2410',cagr:P(p.cagr,1,true),cagrColor:p.cagr>=0?'#37d27e':'#f0556a',sharpe:num(p.sharpe,2),sharpeColor:rtone(p.sharpe,1),maxDD:P(-p.maxDD),winRate:P(p.winRate,0),winRateColor:rtone(p.winRate,0.5),trades:String(p.trades),contribW:(p.contribution/maxContrib*100).toFixed(0)+'%',contribColor:p.market==='US'?'#ff8a3d':'#f5c542'}));
+    vals.sortKey=sortKey;
+    vals.sortButtons=[{k:'cagr',l:'CAGR'},{k:'sharpe',l:'Sharpe'},{k:'winRate',l:'Win%'},{k:'trades',l:'Trades'}].map(b=>({label:b.l,onClick:()=>this.setState({sortKey:b.k}),style:this.segStyle(sortKey===b.k)}));
+    // allocation donut
+    const palette=['#ff8a3d','#f5c542','#37d27e','#7e8aa0','#e0653b','#d4a017','#5fae7a','#c9722e'];
+    let acc=-Math.PI/2; vals.allocSlices=[]; vals.allocLegend=[];
+    R.perSym.forEach((p,i)=>{ const frac=1/R.perSym.length; const a1=acc+frac*2*Math.PI; vals.allocSlices.push({path:this.arcPath(50,50,46,28,acc,a1-0.01),color:palette[i%palette.length]}); vals.allocLegend.push({sym:p.sym,color:palette[i%palette.length],pct:(frac*100).toFixed(0)+'%'}); acc=a1; });
+    // market split
+    const usP=R.perSym.filter(p=>p.market==='US'), nseP=R.perSym.filter(p=>p.market==='NSE');
+    const usR=usP.length?this.mean(usP.map(p=>p.cagr)):0, nseR=nseP.length?this.mean(nseP.map(p=>p.cagr)):0;
+    const mx=Math.max(Math.abs(usR),Math.abs(nseR),0.01);
+    vals.marketSplit=[];
+    if(usP.length)vals.marketSplit.push({name:'US Equities',color:'#ff8a3d',retColor:tone(usR),ret:P(usR,1,true),width:(Math.abs(usR)/mx*100).toFixed(0)+'%',detail:usP.length+' symbols · avg CAGR'});
+    if(nseP.length)vals.marketSplit.push({name:'NSE India',color:'#f5c542',retColor:tone(nseR),ret:P(nseR,1,true),width:(Math.abs(nseR)/mx*100).toFixed(0)+'%',detail:nseP.length+' symbols · avg CAGR'});
+    // scatter
+    const vols=R.perSym.map(p=>p.vol), cagrs=R.perSym.map(p=>p.cagr);
+    let vMax=Math.max(...vols), vMin=Math.min(...vols); let cMax=Math.max(...cagrs), cMin=Math.min(...cagrs);
+    const vPad=Math.max((vMax-vMin)*0.25,0.03), cPad=Math.max((cMax-cMin)*0.25,0.02);
+    vMin-=vPad; vMax+=vPad; cMin-=cPad; cMax+=cPad;
+    const trs=R.perSym.map(p=>p.trades); const trMax=Math.max(...trs,1);
+    vals.scatterPts=R.perSym.map((p,i)=>{ const cx=40+((p.vol-vMin)/((vMax-vMin)||1))*258; const cy=132-((p.cagr-cMin)/((cMax-cMin)||1))*120; const r=5+(p.trades/trMax)*8; const col=p.market==='US'?'#ff8a3d':'#f5c542'; return {cx:cx.toFixed(1),cy:cy.toFixed(1),r:r.toFixed(1),fill:col,color:col,sym:p.sym,ty:(cy-r-3).toFixed(1)}; });
+
+    return vals;
+  }
+}
+</script>
+</body>
+</html>
