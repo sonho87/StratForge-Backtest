@@ -21,7 +21,7 @@ NSE_SYMS = {
     "SBIN", "BHARTIARTL", "ITC",
 }
 
-# yfinance interval mapping
+# yfinance interval mapping + how far back each interval can fetch
 TF_MAP = {
     "1D": "1d",
     "1h": "60m",
@@ -29,6 +29,28 @@ TF_MAP = {
     "15m": "15m",
     "5m": "5m",
 }
+TF_MAX_DAYS = {  # yfinance hard limits
+    "1d": None,
+    "60m": 730,
+    "30m": 60,
+    "15m": 60,
+    "5m": 60,
+    "1m": 7,
+}
+
+
+def clip_intraday_range(start: str, end: str, interval: str) -> tuple[str, str]:
+    """yfinance only serves recent intraday history (rolling window from TODAY).
+    For intraday intervals we ignore the user's date range and use [today-N, today]."""
+    max_days = TF_MAX_DAYS.get(interval)
+    if max_days is None:
+        return start, end
+    today = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    end_ts = min(pd.Timestamp(end), today)
+    if end_ts < today - pd.Timedelta(days=max_days - 1):
+        end_ts = today
+    start_ts = max(pd.Timestamp(start), end_ts - pd.Timedelta(days=max_days - 1))
+    return str(start_ts.date()), str(end_ts.date())
 
 
 def _yahoo_symbol(sym: str) -> str:
@@ -40,9 +62,18 @@ def _cache_path(sym: str, timeframe: str) -> Path:
     return CACHE_DIR / f"{safe}_{timeframe}.parquet"
 
 
+def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
+    idx = pd.to_datetime(df.index)
+    if getattr(idx, "tz", None) is not None:
+        idx = idx.tz_convert("UTC").tz_localize(None)
+    df.index = idx
+    return df
+
+
 def _within(df: pd.DataFrame, start: str, end: str) -> pd.DataFrame:
     if df.empty:
         return df
+    df = _normalize_index(df)
     return df.loc[(df.index >= pd.Timestamp(start)) & (df.index <= pd.Timestamp(end))]
 
 
@@ -51,17 +82,21 @@ def load_yfinance(symbol: str, start: str, end: str, timeframe: str = "1D") -> p
     import yfinance as yf  # imported lazily so server can boot without internet
 
     interval = TF_MAP.get(timeframe, "1d")
+    fetch_start, fetch_end = clip_intraday_range(start, end, interval)
     cache = _cache_path(symbol, timeframe)
     if cache.exists():
         df = pd.read_parquet(cache)
-        sub = _within(df, start, end)
+        sub = _within(df, fetch_start, fetch_end)
         if not sub.empty:
             return sub
 
     ysym = _yahoo_symbol(symbol)
-    log.info("yfinance download %s (%s) %s..%s", ysym, interval, start, end)
+    if (fetch_start, fetch_end) != (start, end):
+        log.info("intraday clip: %s %s..%s -> %s..%s (yfinance %s limit)",
+                 timeframe, start, end, fetch_start, fetch_end, interval)
+    log.info("yfinance download %s (%s) %s..%s", ysym, interval, fetch_start, fetch_end)
     raw = yf.download(
-        ysym, start=start, end=end, interval=interval,
+        ysym, start=fetch_start, end=fetch_end, interval=interval,
         auto_adjust=True, progress=False, threads=False,
     )
     if raw is None or raw.empty:
@@ -70,11 +105,14 @@ def load_yfinance(symbol: str, start: str, end: str, timeframe: str = "1D") -> p
     if isinstance(raw.columns, pd.MultiIndex):
         raw.columns = raw.columns.get_level_values(0)
     raw = raw.rename(columns=str.lower)
-    raw.index = pd.to_datetime(raw.index).tz_localize(None)
+    idx = pd.to_datetime(raw.index)
+    if getattr(idx, "tz", None) is not None:
+        idx = idx.tz_convert("UTC").tz_localize(None)
+    raw.index = idx
     raw = raw[["open", "high", "low", "close", "volume"]].dropna()
 
     raw.to_parquet(cache)
-    return _within(raw, start, end)
+    return _within(raw, fetch_start, fetch_end)
 
 
 def load_csv_upload(upload_id: str, symbol: Optional[str] = None) -> pd.DataFrame:
@@ -145,11 +183,15 @@ def _parse_csv_any(file_bytes: bytes) -> pd.DataFrame:
 
 def load_for_symbol(symbol: str, start: str, end: str, timeframe: str,
                     source: str, upload_id: Optional[str] = None) -> pd.DataFrame:
-    """Unified loader. source: 'yfinance' | 'csv'."""
+    """Unified loader. source: 'yfinance' | 'csv'.
+    Intraday timeframes ignore the user's start/end and use the most recent
+    yfinance-permitted window (~60 days back from today)."""
     if source == "csv":
         if not upload_id:
             raise ValueError("csv source requires upload_id")
         df = load_csv_upload(upload_id, symbol=symbol)
-    else:
-        df = load_yfinance(symbol, start, end, timeframe)
-    return _within(df, start, end)
+        return _within(df, start, end)
+    df = load_yfinance(symbol, start, end, timeframe)
+    if timeframe == "1D":
+        return _within(df, start, end)
+    return df  # intraday: already clipped to fetched window

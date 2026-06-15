@@ -52,12 +52,25 @@ def run_custom_python(code: str, df: pd.DataFrame, params: dict) -> tuple[pd.Ser
     Sandbox: no builtins beyond a safe whitelist; no imports needed (pd/np/ta exposed).
     Runs in-process — fine for local single-user use; wrap in a subprocess for prod.
     """
+    import math as _math
+    _ALLOWED_IMPORTS = {"pandas": pd, "numpy": np, "math": _math, "pd": pd, "np": np}
+
+    def _safe_import(name, *a, **kw):
+        root = name.split(".")[0]
+        if root in _ALLOWED_IMPORTS:
+            return _ALLOWED_IMPORTS[root]
+        raise ImportError(f"import of '{name}' is not allowed in custom strategies "
+                          f"(allowed: pandas, numpy, math)")
+
     safe_builtins = {
         "abs": abs, "min": min, "max": max, "sum": sum, "len": len,
         "range": range, "round": round, "int": int, "float": float, "bool": bool,
         "list": list, "dict": dict, "tuple": tuple, "set": set, "str": str,
         "enumerate": enumerate, "zip": zip, "any": any, "all": all,
         "True": True, "False": False, "None": None,
+        "__import__": _safe_import, "__build_class__": __build_class__,
+        "print": print, "isinstance": isinstance, "type": type, "getattr": getattr,
+        "hasattr": hasattr, "setattr": setattr,
     }
     env = {
         "__builtins__": safe_builtins,
