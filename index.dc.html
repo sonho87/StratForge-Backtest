@@ -737,13 +737,32 @@ class Component extends DCLogic {
       lines.push(``,`if longEntry`,`    strategy.entry("L", strategy.long)`,`strategy.exit("X", "L",`,`     stop  = close * (1 - ${cfg.stopLoss}/100.0),`,`     limit = close * (1 + ${cfg.takeProfit}/100.0))`,`if longExit`,`    strategy.close("L")`);
       return lines;
     } else {
-      let lines=[`import pandas as pd, numpy as np`,`from backtest import Strategy, run`,``,`# ${st}`,`class MyStrategy(Strategy):`,`    capital   = ${cfg.capital}`,`    stop_loss = ${cfg.stopLoss/100}`,`    take_profit = ${cfg.takeProfit/100}`,``,`    def signals(self, df):`];
-      if(cfg.strategy==='rsiMeanRev'){ lines.push(`        rsi = ta.rsi(df.close, ${p.rsiLen})`,`        df['long']  = cross_over(rsi, ${p.oversold})`,`        df['close'] = cross_under(rsi, ${p.overbought})`); }
-      else if(cfg.strategy==='maCross'){ lines.push(`        f = df.close.rolling(${p.fastMA}).mean()`,`        s = df.close.rolling(${p.slowMA}).mean()`,`        df['long']  = cross_over(f, s)`,`        df['close'] = cross_under(f, s)`); }
-      else if(cfg.strategy==='macd'){ lines.push(`        macd, sig = ta.macd(df.close, ${p.fast}, ${p.slow}, ${p.signal})`,`        df['long']  = cross_over(macd, sig)`,`        df['close'] = cross_under(macd, sig)`); }
-      else if(cfg.strategy==='bollinger'){ lines.push(`        b = df.close.rolling(${p.bbLen}).mean()`,`        d = ${p.bbStd} * df.close.rolling(${p.bbLen}).std()`,`        df['long']  = df.close > b + d`,`        df['close'] = df.close < b`); }
-      else { lines.push(`        z = (df.close - df.close.rolling(${p.lookback}).mean()) \\`,`               / df.close.rolling(${p.lookback}).std()`,`        df['long']  = z > ${p.threshold}`,`        df['close'] = z < 0`); }
-      lines.push(`        return df`,``,`run(MyStrategy, symbols=${JSON.stringify(cfg.symbols)},`,`    start="${cfg.startYear}-01-01", end="${cfg.endYear}-12-31",`,`    commission=${cfg.commission/100}, slippage=${cfg.slippage/100})`);
+      // Auto-generated Python must match what backend/engine.py actually executes.
+      // Contract: top-level def signals(df, params) -> (enter_long, exit_long).
+      // Capital / SL / TP / symbols / dates come from the right-side UI panels.
+      let lines=[`# ${st} — runs on real OHLCV from yfinance`,
+                 `# Helpers in scope: rsi, sma, ema, crossover, crossunder, pd, np`,
+                 ``,
+                 `def signals(df, params):`,
+                 `    c = df['close']`];
+      if(cfg.strategy==='rsiMeanRev'){ lines.push(
+        `    r = rsi(c, ${p.rsiLen})`,
+        `    return crossover(r, ${p.oversold}), crossunder(r, ${p.overbought})`); }
+      else if(cfg.strategy==='maCross'){ lines.push(
+        `    f = sma(c, ${p.fastMA})`,
+        `    s = sma(c, ${p.slowMA})`,
+        `    return crossover(f, s), crossunder(f, s)`); }
+      else if(cfg.strategy==='macd'){ lines.push(
+        `    macd_line = ema(c, ${p.fast}) - ema(c, ${p.slow})`,
+        `    sig = ema(macd_line, ${p.signal})`,
+        `    return crossover(macd_line, sig), crossunder(macd_line, sig)`); }
+      else if(cfg.strategy==='bollinger'){ lines.push(
+        `    basis = sma(c, ${p.bbLen})`,
+        `    dev = ${p.bbStd} * c.rolling(${p.bbLen}).std()`,
+        `    return crossover(c, basis + dev), crossunder(c, basis)`); }
+      else { lines.push(
+        `    z = (c - sma(c, ${p.lookback})) / c.rolling(${p.lookback}).std()`,
+        `    return crossover(z, ${p.threshold}), crossunder(z, 0)`); }
       return lines;
     }
   }
