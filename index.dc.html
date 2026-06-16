@@ -218,16 +218,19 @@
                 <button onClick="{{ p15 }}" style="{{ p15Style }}">15Y</button>
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;opacity:{{ periodOp }}">
               <span style="font:500 12px 'JetBrains Mono';color:#b8b0a0;flex:0 0 38px">{{ startYear }}</span>
-              <input type="range" min="2009" max="2024" step="1" value="{{ startYear }}" onInput="{{ onStart }}" style="flex:1">
+              <input type="range" min="{{ startMin }}" max="{{ startMax }}" step="1" value="{{ startYear }}" onInput="{{ onStart }}" style="flex:1;pointer-events:{{ periodPe }}">
               <span style="font:500 11px 'Space Grotesk';color:#5e574a">start</span>
             </div>
-            <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;gap:12px;opacity:{{ periodOp }}">
               <span style="font:500 12px 'JetBrains Mono';color:#b8b0a0;flex:0 0 38px">{{ endYear }}</span>
-              <input type="range" min="2010" max="2025" step="1" value="{{ endYear }}" onInput="{{ onEnd }}" style="flex:1">
+              <input type="range" min="{{ endMin }}" max="{{ endMax }}" step="1" value="{{ endYear }}" onInput="{{ onEnd }}" style="flex:1;pointer-events:{{ periodPe }}">
               <span style="font:500 11px 'Space Grotesk';color:#5e574a">end</span>
             </div>
+            <sc-if value="{{ periodLocked }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:8px;font:500 10px/1.4 'JetBrains Mono';color:#f5c542">⚠ {{ periodLockMsg }}</div>
+            </sc-if>
             <div style="height:1px;background:#2a271f;margin:15px 0"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <label style="display:block"><span style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565">INITIAL CAPITAL</span><div style="display:flex;align-items:center;background:#100f0c;border:1px solid #33302a;border-radius:8px;margin-top:6px;padding:0 10px"><span style="color:#5e574a;font:500 13px 'JetBrains Mono'">$</span><input type="number" value="{{ capital }}" onChange="{{ onCapital }}" style="width:100%;background:transparent;border:none;color:#f2ede1;font:500 13px 'JetBrains Mono';padding:9px 4px;outline:none"></div></label>
@@ -850,6 +853,18 @@ class Component extends DCLogic {
     const pdefs=this.PARAMDEFS[cfg.strategy]||[];
     const TFlist=['5m','15m','30m','1h','1D'];
     const PROV={polygon:'Polygon.io',alpaca:'Alpaca',kite:'Zerodha Kite',upstox:'Upstox',yahoo:'Yahoo Finance'};
+    // period lock — derived from timeframe
+    const _curYear=(new Date()).getUTCFullYear();
+    const _tfBack={'5m':0,'15m':0,'30m':0,'1h':1,'1D':null}[cfg.timeframe];
+    const _periodLocked = _tfBack!==null && _tfBack!==undefined;
+    const _periodLockMsg = _periodLocked
+      ? ('Period locked to ' + (cfg.timeframe) + ' window — yfinance limit ('
+         + {'5m':60,'15m':60,'30m':60,'1h':730}[cfg.timeframe] + ' days from today).')
+      : '';
+    const _startMin = _periodLocked ? (_curYear - _tfBack) : 2009;
+    const _startMax = _periodLocked ? _curYear : 2024;
+    const _endMin   = _periodLocked ? _curYear : 2010;
+    const _endMax   = _periodLocked ? _curYear : 2025;
     Object.assign(vals,{
       lang:S.lang, pine:()=>this.setState({lang:'pine'}), python:()=>this.setState({lang:'python'}),
       langPine:this.langStyle(S.lang==='pine'), langPy:this.langStyle(S.lang==='python'),
@@ -862,10 +877,16 @@ class Component extends DCLogic {
       usSymbols:Object.keys(this.SYMBOLS).filter(s=>this.SYMBOLS[s].m==='US').map(s=>({sym:s,style:this.chipStyle(cfg.symbols.includes(s)),toggle:()=>this.toggleSym(s)})),
       nseSymbols:Object.keys(this.SYMBOLS).filter(s=>this.SYMBOLS[s].m==='NSE').map(s=>({sym:s,style:this.chipStyle(cfg.symbols.includes(s)),toggle:()=>this.toggleSym(s)})),
       startYear:cfg.startYear, endYear:cfg.endYear,
-      onStart:(e)=>this.setCfg({startYear:Math.min(+e.target.value,cfg.endYear-1)}),
-      onEnd:(e)=>this.setCfg({endYear:Math.max(+e.target.value,cfg.startYear+1)}),
-      p10:()=>this.setPeriod(10), p15:()=>this.setPeriod(15),
-      p10Style:this.segStyle(cfg.endYear-cfg.startYear+1===10), p15Style:this.segStyle(cfg.endYear-cfg.startYear+1===15),
+      onStart:(e)=>{ if(_periodLocked) return; this.setCfg({startYear:Math.min(+e.target.value,cfg.endYear-1)}); },
+      onEnd:(e)=>{ if(_periodLocked) return; this.setCfg({endYear:Math.max(+e.target.value,cfg.startYear+1)}); },
+      p10:()=>{ if(!_periodLocked) this.setPeriod(10); },
+      p15:()=>{ if(!_periodLocked) this.setPeriod(15); },
+      p10Style: _periodLocked ? this.segStyle(false) : this.segStyle(cfg.endYear-cfg.startYear+1===10),
+      p15Style: _periodLocked ? this.segStyle(false) : this.segStyle(cfg.endYear-cfg.startYear+1===15),
+      periodOp: _periodLocked ? '0.45' : '1',
+      periodPe: _periodLocked ? 'none' : 'auto',
+      periodLocked: _periodLocked, periodLockMsg: _periodLockMsg,
+      startMin: _startMin, startMax: _startMax, endMin: _endMin, endMax: _endMax,
       capital:cfg.capital, posSize:cfg.posSize, commission:cfg.commission, slippage:cfg.slippage, stopLoss:cfg.stopLoss, takeProfit:cfg.takeProfit,
       onCapital:(e)=>this.setCfg({capital:Math.max(1000,+e.target.value||0)}), onPos:(e)=>this.setCfg({posSize:Math.max(1,Math.min(100,+e.target.value||0))}),
       onComm:(e)=>this.setCfg({commission:Math.max(0,+e.target.value||0)}), onSlip:(e)=>this.setCfg({slippage:Math.max(0,+e.target.value||0)}),
@@ -876,9 +897,21 @@ class Component extends DCLogic {
       editLabel:S.editing?'✓ Done':'✎ Edit code', editStyle:this.segStyle(S.editing),
       onCodeInput:(e)=>this.onCodeInput(e.target.value), toggleEdit:()=>this.toggleEdit(),
       codeBadge: hasCustom?'custom code · '+codeArr.length+' lines':(S.lang==='pine'?'Pine Script v5':'Python')+' · generated',
-      // timeframe
-      tfButtons:TFlist.map(tf=>({label:tf,onClick:()=>this.setCfg({timeframe:tf}),style:this.segStyle(cfg.timeframe===tf)})),
-      tfNote: cfg.timeframe==='1D' ? 'Daily — recommended for 10–15Y swing backtests.' : 'Intraday ('+cfg.timeframe+') — higher trade count & data volume; best for ≤3Y windows in production.',
+      // timeframe — picking intraday auto-clamps the period to a fetchable window
+      tfButtons:TFlist.map(tf=>({
+        label:tf,
+        onClick:()=>{
+          const maxBack = {'5m':0,'15m':0,'30m':0,'1h':1,'1D':99}[tf] ?? 99;
+          const ey = (new Date()).getUTCFullYear();
+          if(tf!=='1D'){ this.setCfg({timeframe:tf, startYear:ey-maxBack, endYear:ey}); }
+          else { this.setCfg({timeframe:tf}); }
+        },
+        style:this.segStyle(cfg.timeframe===tf)
+      })),
+      tfNote: cfg.timeframe==='1D'
+        ? 'Daily — full history available. Best for 10–15Y swing backtests.'
+        : (cfg.timeframe+' intraday — yfinance only serves the last '
+            + {'5m':60,'15m':60,'30m':60,'1h':730}[cfg.timeframe] + ' days from today. Period auto-locked below.'),
       // data source
       dsSample:()=>this.setCfg({dataSource:'sample'}), dsApi:()=>this.setCfg({dataSource:'api'}), dsCsv:()=>this.setCfg({dataSource:'csv'}),
       dsSampleStyle:this.segStyle(cfg.dataSource==='sample'), dsApiStyle:this.segStyle(cfg.dataSource==='api'), dsCsvStyle:this.segStyle(cfg.dataSource==='csv'),
