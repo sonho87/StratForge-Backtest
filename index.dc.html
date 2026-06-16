@@ -523,7 +523,7 @@ class Component extends DCLogic {
       maCross:{label:'MA Crossover (Trend)', winRate:0.43, win:0.034, loss:-0.013, tpy:16, hold:24},
       macd:{label:'MACD Momentum', winRate:0.51, win:0.024, loss:-0.0155, tpy:28, hold:11},
       bollinger:{label:'Bollinger Band Breakout', winRate:0.55, win:0.026, loss:-0.0165, tpy:34, hold:9},
-      custom:{label:'Custom — my_strategy.pine', winRate:0.53, win:0.022, loss:-0.0145, tpy:30, hold:10}
+      custom:{label:'Custom strategy', winRate:0.53, win:0.022, loss:-0.0145, tpy:30, hold:10}
     };
     this.PARAMDEFS = {
       rsiMeanRev:[{key:'rsiLen',label:'RSI length',value:14,min:2,max:40,step:1,unit:''},{key:'oversold',label:'Oversold level',value:30,min:5,max:45,step:1,unit:''},{key:'overbought',label:'Overbought level',value:70,min:55,max:95,step:1,unit:''}],
@@ -743,7 +743,12 @@ class Component extends DCLogic {
       else if(cfg.strategy==='maCross'){ lines.push(`fast = input.int(${p.fastMA}, "Fast MA")`,`slow = input.int(${p.slowMA}, "Slow MA")`,``,`maF = ta.sma(close, fast)`,`maS = ta.sma(close, slow)`,`longEntry = ta.crossover(maF, maS)`,`longExit  = ta.crossunder(maF, maS)`); }
       else if(cfg.strategy==='macd'){ lines.push(`[macdLine, sig, _] = ta.macd(close, ${p.fast}, ${p.slow}, ${p.signal})`,``,`longEntry = ta.crossover(macdLine, sig)`,`longExit  = ta.crossunder(macdLine, sig)`); }
       else if(cfg.strategy==='bollinger'){ lines.push(`len = input.int(${p.bbLen}, "BB Length")`,`mult = input.float(${p.bbStd}, "Std Dev")`,``,`basis = ta.sma(close, len)`,`dev = mult * ta.stdev(close, len)`,`longEntry = ta.crossover(close, basis + dev)`,`longExit  = ta.crossunder(close, basis)`); }
-      else { lines.push(`lb  = input.int(${p.lookback}, "Lookback")`,`thr = input.float(${p.threshold}, "Threshold")`,``,`z = (close - ta.sma(close, lb)) / ta.stdev(close, lb)`,`longEntry = ta.crossover(z, thr)`,`longExit  = ta.crossunder(z, 0)`); }
+      else {
+        // Custom: blank canvas, just a hint
+        return [`// Custom strategy — paste your own Pine Script v5 here.`,
+                `// Pine is display-only in this app (TradingView is the only Pine runtime).`,
+                `// To actually backtest custom logic, switch to the Python tab.`];
+      }
       lines.push(``,`if longEntry`,`    strategy.entry("L", strategy.long)`,`strategy.exit("X", "L",`,`     stop  = close * (1 - ${cfg.stopLoss}/100.0),`,`     limit = close * (1 + ${cfg.takeProfit}/100.0))`,`if longExit`,`    strategy.close("L")`);
       return lines;
     } else {
@@ -770,9 +775,25 @@ class Component extends DCLogic {
         `    basis = sma(c, ${p.bbLen})`,
         `    dev = ${p.bbStd} * c.rolling(${p.bbLen}).std()`,
         `    return crossover(c, basis + dev), crossunder(c, basis)`); }
-      else { lines.push(
-        `    z = (c - sma(c, ${p.lookback})) / c.rolling(${p.lookback}).std()`,
-        `    return crossover(z, ${p.threshold}), crossunder(z, 0)`); }
+      else {
+        // Custom: blank canvas with the contract only — user writes their own
+        return [`# Custom strategy — click "Edit code" and paste your logic.`,
+                `#`,
+                `# Required:  def signals(df, params) -> (enter_long, exit_long)`,
+                `# df:        DataFrame with columns open, high, low, close, volume`,
+                `#            (indexed by date; intraday timestamps are tz-naive UTC).`,
+                `# params:    dict — UI strategy-parameter sliders for the Custom template`,
+                `#            (currently: lookback, threshold; ignored if your code doesn't use them).`,
+                `# Returns:   tuple of two boolean pandas Series aligned to df.index.`,
+                `#`,
+                `# In scope:  pd, np, rsi, sma, ema, crossover, crossunder`,
+                `# Imports allowed: pandas, numpy, math (no file / network / other modules)`,
+                `# Capital, stop-loss, take-profit, symbols, dates, commission, slippage`,
+                `# all come from the UI panels on the right — do NOT hard-code them.`,
+                ``,
+                `def signals(df, params):`,
+                `    pass  # write your strategy here`];
+      }
       return lines;
     }
   }
