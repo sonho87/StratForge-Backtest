@@ -148,11 +148,12 @@
           <!-- universe -->
           <div style="background:#1a1813;border:1px solid #2a271f;border-radius:14px;padding:16px 18px">
             <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565;margin-bottom:13px">UNIVERSE &amp; MARKET</div>
-            <div style="display:flex;gap:6px;margin-bottom:14px">
+            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <button onClick="{{ mNSE }}" style="{{ mNSEStyle }}">Nifty 50 🇮🇳</button>
+              <button onClick="{{ mUS }}" style="{{ mUSStyle }}">S&amp;P US Top 30 🇺🇸</button>
               <button onClick="{{ mBoth }}" style="{{ mBothStyle }}">Both</button>
-              <button onClick="{{ mUS }}" style="{{ mUSStyle }}">US</button>
-              <button onClick="{{ mNSE }}" style="{{ mNSEStyle }}">NSE 🇮🇳</button>
             </div>
+            <div style="font:500 11px/1.4 'JetBrains Mono';color:#9b9384;margin-bottom:12px">{{ universeStatus }}</div>
             <sc-if value="{{ showUS }}" hint-placeholder-val="{{ true }}">
               <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.07em;color:#5e574a;margin-bottom:8px">US EQUITIES</div>
               <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
@@ -735,7 +736,14 @@ class Component extends DCLogic {
   setStrategy(strat){ this.setState(s=>({config:{...s.config,strategy:strat,params:this.clone(this.defParams(strat)),customCode:''}}),()=>this.markDirty()); }
   onCodeInput(text){ this.setState(s=>{ const wasCustom=s.config.strategy==='custom'; const params=wasCustom?s.config.params:this.clone(this.defParams('custom')); return {config:{...s.config,customCode:text,strategy:'custom',params}}; },()=>this.markDirty()); }
   toggleEdit(){ this.setState(s=>({editing:!s.editing})); }
-  setMarket(mk){ this.setState(s=>{ let syms=s.config.symbols.filter(sy=> mk==='both'||(this.SYMBOLS[sy]&&this.SYMBOLS[sy].m.toLowerCase()===mk)); if(!syms.length){ syms=Object.keys(this.SYMBOLS).filter(sy=>mk==='both'||this.SYMBOLS[sy].m.toLowerCase()===mk).slice(0,4);} return {config:{...s.config,market:mk,symbols:syms}}; },()=>this.markDirty()); }
+  setMarket(mk){
+    // One-click: select the entire universe for that index.
+    this.setState(s=>{
+      const all=Object.keys(this.SYMBOLS);
+      const syms = (mk==='both') ? all : all.filter(sy=>this.SYMBOLS[sy].m.toLowerCase()===mk);
+      return {config:{...s.config, market:mk, symbols:syms}};
+    },()=>this.markDirty());
+  }
   toggleSym(sym){ this.setState(s=>{ const has=s.config.symbols.includes(sym); let syms=has?s.config.symbols.filter(x=>x!==sym):[...s.config.symbols,sym]; if(!syms.length)syms=[sym]; return {config:{...s.config,symbols:syms}}; },()=>this.markDirty()); }
   setPeriod(yrs){ this.setCfg({startYear:2025-yrs+1,endYear:2025}); }
   run(){
@@ -895,6 +903,12 @@ class Component extends DCLogic {
       onStrategy:(e)=>this.setStrategy(e.target.value),
       mBoth:()=>this.setMarket('both'), mUS:()=>this.setMarket('us'), mNSE:()=>this.setMarket('nse'),
       mBothStyle:this.segStyle(cfg.market==='both'), mUSStyle:this.segStyle(cfg.market==='us'), mNSEStyle:this.segStyle(cfg.market==='nse'),
+      universeStatus: (()=>{
+        const n=cfg.symbols.length;
+        const us=cfg.symbols.filter(s=>this.SYMBOLS[s]&&this.SYMBOLS[s].m==='US').length;
+        const nse=n-us;
+        return `✓ ${n} symbols selected · ${nse} NSE · ${us} US · click chips below to fine-tune`;
+      })(),
       showUS:cfg.market!=='nse', showNSE:cfg.market!=='us',
       usSymbols:Object.keys(this.SYMBOLS).filter(s=>this.SYMBOLS[s].m==='US').map(s=>({sym:s,style:this.chipStyle(cfg.symbols.includes(s)),toggle:()=>this.toggleSym(s)})),
       nseSymbols:Object.keys(this.SYMBOLS).filter(s=>this.SYMBOLS[s].m==='NSE').map(s=>({sym:s,style:this.chipStyle(cfg.symbols.includes(s)),toggle:()=>this.toggleSym(s)})),
