@@ -125,6 +125,17 @@
               <sc-for list="{{ strategyOptions }}" as="opt" hint-placeholder-count="5"><option value="{{ opt.key }}">{{ opt.label }}</option></sc-for>
             </select>
           </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #2a271f">
+            <div style="font:600 11px/1 'Space Grotesk';letter-spacing:0.08em;color:#7c7565">SAVED</div>
+            <select onChange="{{ onLoadSaved }}" value="" style="flex:1;background:#100f0c;border:1px solid #33302a;color:#f2ede1;font:500 12px 'Space Grotesk';padding:7px 9px;border-radius:7px;cursor:pointer">
+              <option value="">{{ savedPlaceholder }}</option>
+              <sc-for list="{{ savedList }}" as="s" hint-placeholder-count="3"><option value="{{ s.name }}">{{ s.name }}</option></sc-for>
+            </select>
+            <button onClick="{{ saveStrat }}" style="background:#23201a;border:1px solid #46412f;color:#ff8a3d;font:600 11px 'Space Grotesk';padding:7px 11px;border-radius:7px;cursor:pointer" style-hover="background:#2a261d">💾 Save current</button>
+            <sc-if value="{{ hasSavedSelected }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ delSaved }}" style="background:transparent;border:1px solid #33302a;color:#f0556a;font:600 11px 'Space Grotesk';padding:7px 11px;border-radius:7px;cursor:pointer">🗑</button>
+            </sc-if>
+          </div>
           <sc-if value="{{ notEditing }}" hint-placeholder-val="{{ true }}">
           <div style="flex:1;overflow:auto;background:#141210;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.65;max-height:560px">
             <sc-for list="{{ codeLines }}" as="ln" hint-placeholder-count="22">
@@ -559,8 +570,15 @@ class Component extends DCLogic {
       custom:[{key:'lookback',label:'Lookback',value:20,min:5,max:80,step:1,unit:''},{key:'threshold',label:'Signal threshold',value:1.5,min:0.5,max:4,step:0.1,unit:'σ'}]
     };
     const cfg = this.defaultConfig();
+    // Restore last-edited code + saved named strategies from localStorage
+    try {
+      const lastCode = localStorage.getItem('stratforge_lastcode') || '';
+      if (lastCode) cfg.customCode = lastCode;
+    } catch(e) {}
+    let savedStrategies = {};
+    try { savedStrategies = JSON.parse(localStorage.getItem('stratforge_saved') || '{}'); } catch(e) {}
     const results = this.runBacktest(cfg);
-    this.state = { tab:'performance', lang:'pine', config:cfg, ranConfig:this.clone(cfg), results, dirty:false, tradeFilter:'all', logScale:false, sortKey:'cagr', editing:false };
+    this.state = { tab:'performance', lang:'pine', config:cfg, ranConfig:this.clone(cfg), results, dirty:false, tradeFilter:'all', logScale:false, sortKey:'cagr', editing:false, savedStrategies };
   }
 
   clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -733,8 +751,36 @@ class Component extends DCLogic {
   markDirty(){ this.setState({dirty:JSON.stringify(this.state.config)!==JSON.stringify(this.state.ranConfig)}); }
   setCfg(patch){ this.setState(s=>({config:{...s.config,...patch}}),()=>this.markDirty()); }
   setParam(key,val){ this.setState(s=>({config:{...s.config,params:{...s.config.params,[key]:val}}}),()=>this.markDirty()); }
-  setStrategy(strat){ this.setState(s=>({config:{...s.config,strategy:strat,params:this.clone(this.defParams(strat)),customCode:''}}),()=>this.markDirty()); }
-  onCodeInput(text){ this.setState(s=>{ const wasCustom=s.config.strategy==='custom'; const params=wasCustom?s.config.params:this.clone(this.defParams('custom')); return {config:{...s.config,customCode:text,strategy:'custom',params}}; },()=>this.markDirty()); }
+  setStrategy(strat){
+    // Don't wipe customCode — preserve so switching templates and back keeps your code.
+    this.setState(s=>({config:{...s.config,strategy:strat,params:this.clone(this.defParams(strat))}}),()=>this.markDirty());
+  }
+  onCodeInput(text){
+    try { localStorage.setItem('stratforge_lastcode', text); } catch(e) {}
+    this.setState(s=>{ const wasCustom=s.config.strategy==='custom'; const params=wasCustom?s.config.params:this.clone(this.defParams('custom')); return {config:{...s.config,customCode:text,strategy:'custom',params}}; },()=>this.markDirty());
+  }
+  saveStrategy(){
+    const code = this.state.config.customCode;
+    if (!code || !code.trim()) { alert('Nothing to save — paste some Python first.'); return; }
+    const name = prompt('Save current strategy as:', 'My strategy');
+    if (!name) return;
+    const saved = {...this.state.savedStrategies, [name]: code};
+    try { localStorage.setItem('stratforge_saved', JSON.stringify(saved)); } catch(e) { alert('Save failed: '+e.message); return; }
+    this.setState({savedStrategies: saved});
+  }
+  loadStrategy(name){
+    if (!name) return;
+    const code = this.state.savedStrategies[name];
+    if (code) this.onCodeInput(code);
+  }
+  deleteStrategy(name){
+    if (!name) return;
+    if (!confirm('Delete saved strategy "'+name+'"?')) return;
+    const saved = {...this.state.savedStrategies};
+    delete saved[name];
+    try { localStorage.setItem('stratforge_saved', JSON.stringify(saved)); } catch(e) {}
+    this.setState({savedStrategies: saved});
+  }
   toggleEdit(){ this.setState(s=>({editing:!s.editing})); }
   setMarket(mk){
     // One-click: select the entire universe for that index.
@@ -901,6 +947,13 @@ class Component extends DCLogic {
       codeLines, strategyKey:cfg.strategy,
       strategyOptions:Object.keys(this.STRATS).map(k=>({key:k,label:this.STRATS[k].label})),
       onStrategy:(e)=>this.setStrategy(e.target.value),
+      // saved strategies (localStorage-backed)
+      savedList: Object.keys(S.savedStrategies).map(n=>({name:n})),
+      savedPlaceholder: Object.keys(S.savedStrategies).length ? '— load saved strategy —' : '— no saved strategies yet —',
+      onLoadSaved:(e)=>this.loadStrategy(e.target.value),
+      saveStrat:()=>this.saveStrategy(),
+      delSaved:()=>{ const names=Object.keys(S.savedStrategies); if(names.length) this.deleteStrategy(names[names.length-1]); },
+      hasSavedSelected: Object.keys(S.savedStrategies).length > 0,
       mBoth:()=>this.setMarket('both'), mUS:()=>this.setMarket('us'), mNSE:()=>this.setMarket('nse'),
       mBothStyle:this.segStyle(cfg.market==='both'), mUSStyle:this.segStyle(cfg.market==='us'), mNSEStyle:this.segStyle(cfg.market==='nse'),
       universeStatus: (()=>{
