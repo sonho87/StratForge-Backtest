@@ -184,9 +184,7 @@
               <select onChange="{{ onProvider }}" value="{{ apiProvider }}" style="width:100%;background:#100f0c;border:1px solid #33302a;color:#f2ede1;font:500 13px 'Space Grotesk';padding:9px 10px;border-radius:8px;cursor:pointer;margin-bottom:11px">
                 <sc-for list="{{ providerOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
               </select>
-              <div style="font:600 10px/1 'Space Grotesk';letter-spacing:0.06em;color:#7c7565;margin-bottom:6px">API KEY</div>
-              <input type="text" value="{{ apiKey }}" onChange="{{ onApiKey }}" placeholder="paste secret key" style="width:100%;background:#100f0c;border:1px solid #33302a;color:#f2ede1;font:500 12px 'JetBrains Mono';padding:9px 11px;border-radius:8px;outline:none;margin-bottom:10px">
-              <div style="display:flex;align-items:center;gap:7px;font:500 11px/1.4 'JetBrains Mono';color:#f5c542"><span style="width:6px;height:6px;border-radius:50%;background:#f5c542"></span>{{ apiStatus }}</div>
+              <div style="display:flex;align-items:center;gap:7px;font:500 11px/1.4 'JetBrains Mono';color:#37d27e"><span style="width:6px;height:6px;border-radius:50%;background:#37d27e"></span>{{ apiStatus }}</div>
             </sc-if>
             <sc-if value="{{ showCsv }}" hint-placeholder-val="{{ false }}">
               <label style="display:flex;flex-direction:column;align-items:center;gap:8px;background:#100f0c;border:1.5px dashed #46412f;border-radius:10px;padding:20px 14px;cursor:pointer" style-hover="border-color:#ff8a3d">
@@ -866,7 +864,7 @@ class Component extends DCLogic {
           .catch(err=>{ console.error('[upload]',err); this.setCfg({csvName:f.name+' · upload failed'}); alert('CSV upload failed:\n'+err.message); });
       },
       csvName:cfg.csvName, csvStatus: cfg.csvName? ('Loaded '+cfg.csvName+' · '+R.eq.length.toLocaleString('en-US')+' rows') : 'No file selected',
-      apiStatus: cfg.apiKey? ('Connected to '+PROV[cfg.apiProvider]+' · key •••'+cfg.apiKey.slice(-4)) : ('Enter '+PROV[cfg.apiProvider]+' API key'),
+      apiStatus: PROV[cfg.apiProvider]+' · no key required · ready',
       dsFooter: cfg.dataSource==='sample'?'Data source: built-in synthetic OHLCV (offline)':cfg.dataSource==='api'?('Data source: '+PROV[cfg.apiProvider]+' API'):('Data source: uploaded CSV'+(cfg.csvName?(' — '+cfg.csvName):'')),
     });
 
