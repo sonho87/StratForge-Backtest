@@ -15,10 +15,18 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 log = logging.getLogger("data")
 
-# NSE symbols need .NS suffix on Yahoo Finance.
+# NSE symbols need .NS suffix on Yahoo Finance. Full Nifty 50 constituent list.
 NSE_SYMS = {
-    "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK",
-    "SBIN", "BHARTIARTL", "ITC",
+    "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK",
+    "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV", "BPCL", "BHARTIARTL",
+    "BRITANNIA", "CIPLA", "COALINDIA", "DIVISLAB", "DRREDDY",
+    "EICHERMOT", "GRASIM", "HCLTECH", "HDFCBANK", "HDFCLIFE",
+    "HEROMOTOCO", "HINDALCO", "HINDUNILVR", "ICICIBANK", "INDUSINDBK",
+    "INFY", "ITC", "JSWSTEEL", "KOTAKBANK", "LT",
+    "LTIM", "M&M", "MARUTI", "NESTLEIND", "NTPC",
+    "ONGC", "POWERGRID", "RELIANCE", "SBILIFE", "SBIN",
+    "SHRIRAMFIN", "SUNPHARMA", "TATACONSUM", "TATAMOTORS", "TATASTEEL",
+    "TCS", "TECHM", "TITAN", "ULTRACEMCO", "UPL", "WIPRO",
 }
 
 # yfinance interval mapping + how far back each interval can fetch

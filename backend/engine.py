@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from data import load_for_symbol
+from data import load_for_symbol, NSE_SYMS
 
 # ---------- indicators ----------
 
@@ -314,8 +314,7 @@ def run_backtest(cfg: dict) -> dict:
         maxdd_s = float((eq_s / peak_s - 1).min())
         wins_s = sum(1 for t in ts if t["ret"] > 0)
         win_rate_s = (wins_s / len(ts)) if ts else 0.0
-        market = "NSE" if sym.upper() in {"RELIANCE", "TCS", "INFY", "HDFCBANK",
-                                           "ICICIBANK", "SBIN", "BHARTIARTL", "ITC"} else "US"
+        market = "NSE" if sym.upper() in NSE_SYMS else "US"
         per_sym.append({
             "sym": sym, "market": market,
             "cagr": float(cagr_s), "sharpe": float(sharpe_s),

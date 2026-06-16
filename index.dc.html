@@ -513,13 +513,35 @@
 class Component extends DCLogic {
   constructor(props){
     super(props);
+    // US top 30 by market cap, Nifty 50 full constituent list.
+    // drift/vol fields are only used by the in-browser synthetic simulator
+    // (Sample mode). Real backtests use yfinance prices — these fields are ignored.
+    const U=(d,v)=>({m:'US',drift:d,vol:v});
+    const N=(d,v)=>({m:'NSE',drift:d,vol:v});
     this.SYMBOLS = {
-      AAPL:{m:'US',drift:0.24,vol:0.30}, MSFT:{m:'US',drift:0.22,vol:0.27}, NVDA:{m:'US',drift:0.41,vol:0.48},
-      AMZN:{m:'US',drift:0.23,vol:0.34}, GOOGL:{m:'US',drift:0.19,vol:0.28}, TSLA:{m:'US',drift:0.38,vol:0.58},
-      META:{m:'US',drift:0.21,vol:0.38}, JPM:{m:'US',drift:0.12,vol:0.24},
-      RELIANCE:{m:'NSE',drift:0.18,vol:0.29}, TCS:{m:'NSE',drift:0.16,vol:0.24}, INFY:{m:'NSE',drift:0.15,vol:0.27},
-      HDFCBANK:{m:'NSE',drift:0.14,vol:0.25}, ICICIBANK:{m:'NSE',drift:0.17,vol:0.28}, SBIN:{m:'NSE',drift:0.13,vol:0.33},
-      BHARTIARTL:{m:'NSE',drift:0.16,vol:0.30}, ITC:{m:'NSE',drift:0.11,vol:0.23}
+      // ===== US top 30 =====
+      AAPL:U(0.24,0.30),  MSFT:U(0.22,0.27),  NVDA:U(0.41,0.48),  GOOGL:U(0.19,0.28),
+      AMZN:U(0.23,0.34),  META:U(0.21,0.38),  TSLA:U(0.38,0.58),  'BRK-B':U(0.12,0.18),
+      AVGO:U(0.30,0.36),  JPM:U(0.12,0.24),   V:U(0.16,0.22),     WMT:U(0.11,0.20),
+      LLY:U(0.28,0.30),   MA:U(0.16,0.24),    XOM:U(0.10,0.30),   ORCL:U(0.18,0.28),
+      COST:U(0.18,0.22),  HD:U(0.14,0.26),    PG:U(0.09,0.18),    JNJ:U(0.07,0.18),
+      NFLX:U(0.22,0.40),  BAC:U(0.10,0.30),   ABBV:U(0.14,0.24),  CRM:U(0.19,0.36),
+      KO:U(0.08,0.16),    MRK:U(0.11,0.22),   PEP:U(0.09,0.18),   AMD:U(0.32,0.50),
+      ADBE:U(0.20,0.34),  CSCO:U(0.10,0.22),
+      // ===== Nifty 50 (NSE India) =====
+      ADANIENT:N(0.22,0.50),    ADANIPORTS:N(0.20,0.36), APOLLOHOSP:N(0.18,0.30), ASIANPAINT:N(0.10,0.24),
+      AXISBANK:N(0.14,0.28),    'BAJAJ-AUTO':N(0.16,0.28), BAJFINANCE:N(0.22,0.34), BAJAJFINSV:N(0.20,0.32),
+      BPCL:N(0.10,0.32),         BHARTIARTL:N(0.16,0.30), BRITANNIA:N(0.10,0.22),  CIPLA:N(0.10,0.22),
+      COALINDIA:N(0.09,0.30),    DIVISLAB:N(0.12,0.30),   DRREDDY:N(0.10,0.22),    EICHERMOT:N(0.14,0.28),
+      GRASIM:N(0.13,0.28),       HCLTECH:N(0.14,0.26),    HDFCBANK:N(0.14,0.25),   HDFCLIFE:N(0.10,0.24),
+      HEROMOTOCO:N(0.10,0.26),   HINDALCO:N(0.12,0.34),   HINDUNILVR:N(0.10,0.20), ICICIBANK:N(0.17,0.28),
+      INDUSINDBK:N(0.12,0.32),   INFY:N(0.15,0.27),       ITC:N(0.11,0.23),        JSWSTEEL:N(0.14,0.34),
+      KOTAKBANK:N(0.12,0.26),    LT:N(0.14,0.26),         LTIM:N(0.14,0.30),       'M&M':N(0.14,0.28),
+      MARUTI:N(0.12,0.26),       NESTLEIND:N(0.10,0.20),  NTPC:N(0.10,0.24),       ONGC:N(0.08,0.30),
+      POWERGRID:N(0.10,0.22),    RELIANCE:N(0.18,0.29),   SBILIFE:N(0.10,0.24),    SBIN:N(0.13,0.33),
+      SHRIRAMFIN:N(0.16,0.32),   SUNPHARMA:N(0.12,0.24),  TATACONSUM:N(0.12,0.24), TATAMOTORS:N(0.18,0.36),
+      TATASTEEL:N(0.10,0.32),    TCS:N(0.16,0.24),        TECHM:N(0.12,0.28),      TITAN:N(0.16,0.28),
+      ULTRACEMCO:N(0.13,0.26),   UPL:N(0.10,0.34),        WIPRO:N(0.10,0.26)
     };
     this.STRATS = {
       rsiMeanRev:{label:'RSI Mean Reversion', winRate:0.59, win:0.0165, loss:-0.0125, tpy:44, hold:6},
